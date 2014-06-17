@@ -73,6 +73,11 @@ class SQLContext(@transient val sparkContext: SparkContext)
   protected[sql] def executePlan(plan: LogicalPlan): this.QueryExecution =
     new this.QueryExecution { val logical = plan }
 
+  /** PIG */
+  @transient
+  protected[sql] val pigParser = new PigParser(this)
+  protected[sql] def parsePig(pig: String): LogicalPlan = pigParser(pig)
+
   /**
    * :: DeveloperApi ::
    * Allows catalyst LogicalPlans to be executed as a SchemaRDD.  Note that the LogicalPlan
@@ -153,6 +158,16 @@ class SQLContext(@transient val sparkContext: SparkContext)
     // when using the query DSL.  This is so DDL commands behave as expected.  This is only
     // generates the RDD lineage for DML queries, but do not perform any execution.
     result.queryExecution.toRdd
+    result
+  }
+
+  /**
+   * PIG
+   *     Executes a Pig Latin query using Spark, returning the result as a SchemaRDD
+   */
+  def pig(pigText: String): SchemaRDD = {
+    val result = new SchemaRDD(this, parsePig(pigText))
+    //result.queryExecution.toRDD
     result
   }
 

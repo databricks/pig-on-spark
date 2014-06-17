@@ -486,8 +486,9 @@ object SparkBuild extends Build {
   def sqlCoreSettings = sharedSettings ++ Seq(
     name := "spark-sql",
     libraryDependencies ++= Seq(
-      "com.twitter" % "parquet-column" % parquetVersion,
-      "com.twitter" % "parquet-hadoop" % parquetVersion
+      "org.apache.pig" % "pig"            % "0.14.0-SNAPSHOT",
+      "com.twitter"    % "parquet-column" % parquetVersion,
+      "com.twitter"    % "parquet-hadoop" % parquetVersion
     )
   )
 
