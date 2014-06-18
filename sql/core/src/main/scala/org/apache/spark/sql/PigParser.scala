@@ -15,7 +15,6 @@ class PigParser(sqc: SQLContext) {
    * TODO: This might throw away some context.
    * Check eg. Pig's Main.java:486 to see if we need to take a different approach
    */
-  val sc: SparkContext = sqc.sparkContext
   val pc: PigContext = new PigContext(ExecType.LOCAL, new Properties)
 
   /**
@@ -39,6 +38,7 @@ class PigParser(sqc: SQLContext) {
 
   def pigPlanToSparkPlan(pigLogicalPlan: PigLogicalPlan): SparkLogicalPlan = {
     val lptv = new LogicalPlanTranslationVisitor(pigLogicalPlan, pc, sqc)
-    null
+    lptv.visit()
+    lptv.getRoot()
   }
 }
