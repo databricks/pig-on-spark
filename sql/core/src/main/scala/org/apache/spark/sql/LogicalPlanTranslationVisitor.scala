@@ -1,30 +1,23 @@
 package org.apache.spark.sql
 
-import org.apache.pig.newplan.logical.relational.{LOStore, LOFilter, LOLoad, LogicalRelationalNodesVisitor}
-import org.apache.pig.newplan.DependencyOrderWalker
-import org.apache.pig.newplan.{OperatorPlan => PigOperatorPlan, Operator => PigOperator}
-import org.apache.pig.impl.PigContext
-import org.apache.pig.newplan.logical.expression.{LogicalExpressionPlan => PigExpression}
-import org.apache.pig.data.{DataType => PigDataType}
 
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan => SparkLogicalPlan, Filter => SparkFilter}
-import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, _}
-import org.apache.spark.sql.execution.{SparkLogicalPlan => SparkExecutionLogicalPlan}
+import org.apache.pig.data.{DataType => PigDataType}
+import org.apache.pig.impl.PigContext
+import org.apache.pig.newplan.{OperatorPlan => PigOperatorPlan, Operator => PigOperator, DependencyOrderWalker}
+import org.apache.pig.newplan.logical.expression.{LogicalExpressionPlan => PigExpression}
+import org.apache.pig.newplan.logical.relational.{LOStore, LOFilter, LOLoad, LogicalRelationalNodesVisitor}
+
+import org.apache.spark.sql.catalyst.expressions.{
+Expression => SparkExpression, AttributeReference, GenericRow, MutableProjection, Cast}
+import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan => SparkLogicalPlan, Filter => SparkFilter, PigLoad, PigStore}
 import org.apache.spark.sql.catalyst.types._
-import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.execution.{SparkLogicalPlan => SparkExecutionLogicalPlan, ExistingRdd}
 
 import scala.collection.mutable.HashMap
 import scala.collection.immutable.List
 import scala.collection.JavaConversions._
 import scala.Some
 import scala.Tuple2
-import org.apache.spark.sql.execution.ExistingRdd
-import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
-import org.apache.spark.sql.catalyst.types.MapType
-import scala.Some
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import scala.Tuple2
-import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 
 /**
  * Walks the PigOperatorPlan and builds an equivalent SparkLogicalPlan
@@ -49,51 +42,38 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan, pc: PigContext, sc: S
   /**
    * This operation doesn't really have an exact analog in Spark, which uses regular Scala
    * commands to create RDDs from files.
-   * @param loLoad
+   * @param pigLoad
    */
-  override def visit(loLoad: LOLoad) = {
-    val schemaMap = schemaOfLoad(loLoad)
-    val castProjection = schemaCaster(schemaMap)
-
-    val file = loLoad.getSchemaFile
+  override def visit(pigLoad: LOLoad) = {
+    val schemaMap = schemaOfLoad(pigLoad)
+    val file = pigLoad.getSchemaFile
     // This is only guaranteed to work for PigLoader, which just splits each line
     //  on a single delimiter. If no delimiter is specified, we assume tab-delimited
-    val parserArgs = loLoad.getFileSpec.getFuncSpec.getCtorArgs()
+    val parserArgs = pigLoad.getFileSpec.getFuncSpec.getCtorArgs()
     val delimiter = if (parserArgs == null) "\t" else parserArgs(0)
+    val alias = pigLoad.getAlias
 
-    val splitLines = sc.sparkContext.textFile(file).map(_.split(delimiter))
-    val rowRdd = splitLines.map(r => new GenericRow(r.asInstanceOf[Array[Any]]))
-    val typedRdd = rowRdd.map(castProjection)
-    // TODO: This is a janky hack. A cleaner public API for parsing files into schemaRDD is on our to-do list
-    val schemaRDD = new SchemaRDD(
-      sc, SparkExecutionLogicalPlan(ExistingRdd(schemaMap, typedRdd)))
-
-    val alias = loLoad.getAlias
-    sc.registerRDDAsTable(schemaRDD, alias)
-
-    // We need to put something in to be the child of the next node
-    // This is a hack and may not be right
-    val dummyNode = new UnresolvedRelation(None, alias, None)
-    updateStructures(loLoad, dummyNode)
+    val load = PigLoad(path = file, delimiter = delimiter, alias = alias, output = schemaMap)
+    updateStructures(pigLoad, load)
   }
 
   override def visit(pigFilter: LOFilter) = {
     val sparkExpression = translateExpression(pigFilter.getFilterPlan)
-
-    // Get this node's children from our map and build the node
-    val childList = pigToSparkChildrenMap.get(pigFilter)
-    val sparkChild = childList match {
-      case None => throw new NoSuchElementException
-      case Some(realList) => realList.head
-    }
-
-    val filter: SparkFilter = new SparkFilter(condition = sparkExpression, child = sparkChild)
-
+    val sparkChild = getChild(pigFilter)
+    val filter = new SparkFilter(condition = sparkExpression, child = sparkChild)
     updateStructures(pigFilter, filter)
   }
 
-  override def visit(loStore: LOStore) = {
+  override def visit(pigStore: LOStore) = {
+    val pathname = pigStore.getOutputSpec.getFileName
+    // This is only guaranteed to work for PigLoader, which just splits each line
+    //  on a single delimiter. If no delimiter is specified, we assume tab-delimited
+    val parserArgs = pigStore.getFileSpec.getFuncSpec.getCtorArgs()
+    val delimiter = if (parserArgs == null) "\t" else parserArgs(0)
 
+    val sparkChild = getChild(pigStore)
+    val store = new PigStore(path = pathname, delimiter = delimiter, child = sparkChild)
+    updateStructures(pigStore, store)
   }
 
   /**
@@ -126,25 +106,9 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan, pc: PigContext, sc: S
   }
 
   /**
-   * Generates a projections that will cast an all-string row into a row
-   *  with the types in schema
-   */
-  protected def schemaCaster(schema: Seq[AttributeReference]): MutableProjection = {
-    println("schema is:")
-    schema.map(println)
-    val startSchema = (1 to schema.length).toSeq.map(
-      i => new AttributeReference(i.toString(), StringType, nullable = true)())
-    println("startSchema is:")
-    startSchema.map(println)
-    val casts = schema.zipWithIndex.map{case (ar, i) => Cast(startSchema(i), ar.dataType)}
-    new MutableProjection(casts, startSchema)
-  }
-
-  /**
    * Returns the root of the translated SparkLogicalPlan. We're using a DependencyOrderWalker,
    *  so we're guaranteed that the last node we visit (and therefore the first node on our list)
    *  will be the root.
-   * @return
    */
   def getRoot(): SparkLogicalPlan = { sparkPlans.head }
 
@@ -154,8 +118,6 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan, pc: PigContext, sc: S
    * We translate the tree in dependency order so that we can always create a Spark node with
    *  references to its (previously translated) children. This function fills in the
    *  pigToSparkChildren map so that every Pig node has a pointer to its translated children.
-   * @param pigOp
-   * @param sparkOp
    */
   def updateStructures(pigOp: PigOperator, sparkOp: SparkLogicalPlan) = {
     val succs = pigOp.getPlan.getSuccessors(pigOp)
@@ -173,6 +135,19 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan, pc: PigContext, sc: S
     }
 
     sparkPlans = sparkOp +: sparkPlans
+  }
+
+  /**
+   * Returns the first child that we have stored for pigOp (which should be a UnaryNode)
+   * TODO: How do we handle the case where PigOp is not a UnaryNode? Should we even check here?
+   */
+  protected def getChild(pigOp: PigOperator) = {
+    // Get this node's children from our map and build the node
+    val childList = pigToSparkChildrenMap.get(pigOp)
+    childList match {
+      case None => throw new NoSuchElementException
+      case Some(realList) => realList.head
+    }
   }
 
   protected def translateExpression(pigExpression: PigExpression) : SparkExpression = {
