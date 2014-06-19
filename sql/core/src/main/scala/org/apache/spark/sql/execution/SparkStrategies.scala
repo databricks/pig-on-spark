@@ -227,6 +227,10 @@ private[sql] abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
         execution.Generate(generator, join = join, outer = outer, planLater(child)) :: Nil
       case logical.NoRelation =>
         execution.ExistingRdd(Nil, singleRowRdd) :: Nil
+      case logical.PigLoad(path, delimiter, alias, output) =>
+        execution.PigLoad(path, delimiter, alias, output)(sparkContext, sqlContext) :: Nil
+      case logical.PigStore(path, delimiter, child) =>
+        execution.PigStore(path, delimiter, planLater(child))(sparkContext) :: Nil
       case logical.Repartition(expressions, child) =>
         execution.Exchange(HashPartitioning(expressions, numPartitions), planLater(child)) :: Nil
       case SparkLogicalPlan(existingPlan) => existingPlan :: Nil
