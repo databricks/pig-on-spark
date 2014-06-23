@@ -1,0 +1,6 @@
+
+register ':SCRIPTHOMEPATH:/python/scriptingudf.py' using jython as myfuncs;
+register ':SCRIPTHOMEPATH:/python/morepythonudfs.py' using jython as morefuncs;
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age:int, gpa:double);
+b = foreach a generate myfuncs.square(age), morefuncs.square(age);
+store b into ':OUTPATH:';

@@ -1,0 +1,5 @@
+register :FUNCPATH:/testudf.jar;
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age:int, gpa);
+b = group a by age PARTITION BY org.apache.pig.test.utils.SimpleCustomPartitioner2 parallel 2;
+c = foreach b generate group, COUNT(a);
+store c into ':OUTPATH:';

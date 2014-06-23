@@ -1,0 +1,5 @@
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age, gpa);
+b = load ':INPATH:/singlefile/votertab10k' as (name, age, registration, contributions);
+c = cogroup a by name, b by name;
+d = foreach c generate flatten(group), COUNT(a) + COUNT(b);
+store d into ':OUTPATH:';

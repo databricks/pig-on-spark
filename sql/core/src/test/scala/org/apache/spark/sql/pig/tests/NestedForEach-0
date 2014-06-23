@@ -1,0 +1,9 @@
+
+                        A = LOAD ':INPATH:/singlefile/studenttab10k' as (name:chararray, age:int, gpa:double);
+                        B = group A by name;
+                        C = foreach B {
+                            C1 = foreach A generate UPPER(name), age+1 as age, gpa;
+                            generate C1;
+                        }
+                        D = foreach C generate flatten(C1);
+                        store D into ':OUTPATH:';

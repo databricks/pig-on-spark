@@ -1,0 +1,2 @@
+a = load ':INPATH:/singlefile/studentcolon10k' using PigStorage(':') as (name, age, gpa);
+store a into ':OUTPATH:';

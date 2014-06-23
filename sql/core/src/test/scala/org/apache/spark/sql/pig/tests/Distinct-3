@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/studenttab10k';
+b = distinct a;
+store b into ':OUTPATH:';

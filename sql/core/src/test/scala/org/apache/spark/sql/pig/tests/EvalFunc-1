@@ -1,0 +1,5 @@
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name:chararray, age, gpa);
+b = filter a by name lt 'b';
+c = foreach b generate TOKENIZE(name);
+d = foreach c generate flatten($0);
+store d into ':OUTPATH:';

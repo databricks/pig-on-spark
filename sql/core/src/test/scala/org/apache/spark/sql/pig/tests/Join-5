@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+c = join a by name, b by name using 'repl';
+store c into ':OUTPATH:';

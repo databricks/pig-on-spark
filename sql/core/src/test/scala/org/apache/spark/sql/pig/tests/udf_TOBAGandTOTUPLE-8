@@ -1,0 +1,4 @@
+
+A  = load ':INPATH:/types/numbers.txt' using PigStorage(':') as (intnum1000: int,id: int,intnum5: int,intnum100: int,intnum: int,longnum: long,floatnum: float,doublenum: double);
+B = limit A 10;
+C = foreach B generate $0, $1, TOTUPLE($2, $998, $4), TOBAG($5, $6), $7;

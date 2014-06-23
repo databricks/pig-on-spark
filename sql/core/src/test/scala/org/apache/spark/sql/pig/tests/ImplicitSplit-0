@@ -1,0 +1,6 @@
+a = load ':INPATH:/singlefile/studenttab10k';
+b = filter a by $1 > 50;
+c = filter a by $2 > 3.0;
+d = cogroup b by $0, c by $0;
+e = foreach d generate flatten(b), flatten(c);
+store e into ':OUTPATH:';

@@ -1,0 +1,5 @@
+ 
+A = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name:chararray, age: int, gpa: double, extra: chararray);
+B = filter A by age > 50 or extra > 'm';
+D = order B by age, extra;
+store D into ':OUTPATH:';

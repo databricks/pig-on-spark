@@ -1,0 +1,27 @@
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age, gpa);
+b = group a by name;
+c = foreach b generate group, COUNT($1);
+store c into ':OUTPATH:';
+--This is a really long script to test that when script size exceeds 1k we can still parse it.
+--The quick sly fox jumped over the lazy brown dog.
+--he quick sly fox jumped over the lazy brown dog.T
+--e quick sly fox jumped over the lazy brown dog.Th
+-- quick sly fox jumped over the lazy brown dog.The
+--quick sly fox jumped over the lazy brown dog.The 
+--uick sly fox jumped over the lazy brown dog.The q
+--ick sly fox jumped over the lazy brown dog.The qu
+--ck sly fox jumped over the lazy brown dog.The qui
+--k sly fox jumped over the lazy brown dog.The quic
+-- sly fox jumped over the lazy brown dog.The quick
+--sly fox jumped over the lazy brown dog.The quick 
+--ly fox jumped over the lazy brown dog.The quick s
+--y fox jumped over the lazy brown dog.The quick sl
+-- fox jumped over the lazy brown dog.The quick sly
+--fox jumped over the lazy brown dog.The quick sly 
+--ox jumped over the lazy brown dog.The quick sly f
+--x jumped over the lazy brown dog.The quick sly fo
+-- jumped over the lazy brown dog.The quick sly fox
+--jumped over the lazy brown dog.The quick sly fox 
+--umped over the lazy brown dog.The quick sly fox j
+--mped over the lazy brown dog.The quick sly fox ju
+--ped over the lazy brown dog.The quick sly fox jum

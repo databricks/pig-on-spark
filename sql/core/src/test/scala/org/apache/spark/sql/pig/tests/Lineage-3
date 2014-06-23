@@ -1,0 +1,7 @@
+register :FUNCPATH:/testudf.jar;
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = filter a by name lt 'b';
+c = foreach b generate org.apache.pig.test.udf.evalfunc.CreateMap((chararray)name, (int)age);
+d = foreach c generate $0#'alice young';
+split d into e if $0 is not null, f if $0 is null;
+store e into ':OUTPATH:';

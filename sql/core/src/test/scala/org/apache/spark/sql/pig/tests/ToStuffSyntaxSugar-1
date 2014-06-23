@@ -1,0 +1,4 @@
+
+				A = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name:chararray, age:int, gpa:float);
+				B = foreach A generate {name, age};
+				store B into ':OUTPATH:';

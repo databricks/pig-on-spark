@@ -1,0 +1,13 @@
+a = load ':INPATH:/singlefile/votertab10k';
+                    b = load ':INPATH:/singlefile/studenttab20m';
+                    h = filter b by $2 < 1.5;
+                    c = order a by $0;
+                    d = order h by $0 parallel 1;
+                    store c into ':OUTPATH:.intermediate1';
+                    store d into ':OUTPATH:.intermediate2';
+                    exec;
+                    e = load ':OUTPATH:.intermediate1' as (name:chararray, age:int, reg:chararray, contrib:float);
+                    f = load ':OUTPATH:.intermediate2'as (name:chararray, age:int, gpa:float);
+                    g = join e by $0, f by $0 using 'merge';
+                    i = filter g by $2 == 'democrat' and $1 > 76;
+                    store i into ':OUTPATH:';

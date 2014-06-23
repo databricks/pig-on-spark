@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studenttab10k';
+b = filter a by $1 > 25;
+c = join a by $0, b by $0;
+store c into ':OUTPATH:';

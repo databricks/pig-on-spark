@@ -1,0 +1,12 @@
+ 
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name:chararray, age:long, gpa: float);
+b = group a by  name;
+c = foreach b generate a, (1,2,3), ['key1'#'value1','key2'#'value2'];
+-- store the bag, tuple and map
+store c into ':OUTPATH:.intermediate' using PigStorage();
+d = load ':OUTPATH:.intermediate' using PigStorage() as (b:bag{t:tuple(x,y,z)}, t2:tuple(a,b,c), m:map[]);
+-- after this load, the fields are treated as bytearrays though
+-- they are actually "typed", test that the implicit casts 
+-- introduced by the operations in the foreach below will work fine
+e = foreach d generate COUNT(b), t2.a, t2.b, t2.c, m#'key1', m#'key2';
+store e into ':OUTPATH:';

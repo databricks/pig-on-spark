@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/studentnulltab10k' as (name, age, gpa);
+b = filter a by age == '25' and gpa < 3; 
+store b into ':OUTPATH:';

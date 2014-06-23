@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/studenttab10k';
+b = order a by $1 parallel 100;
+store b into ':OUTPATH:';

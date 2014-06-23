@@ -1,0 +1,5 @@
+a = load ':INPATH:/singlefile/allscalar10k' using PigStorage() as (name:chararray, age:int, gpa:double, instate:boolean);
+                                store a into ':OUTPATH:.intermediate' using JsonStorage();
+                                exec
+                                B = LOAD ':OUTPATH:.intermediate' using JsonLoader();
+                                store B into ':OUTPATH:';

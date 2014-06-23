@@ -1,0 +1,7 @@
+
+                        register :FUNCPATH:/testudf.jar;
+                        define udfdc org.apache.pig.test.udf.evalfunc.Udfcachetest(':INPATH:/singlefile/votertab10k#foodle');
+                        a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+                        b = limit a 1;
+                        c = foreach b generate udfdc(age);
+                        dump c;

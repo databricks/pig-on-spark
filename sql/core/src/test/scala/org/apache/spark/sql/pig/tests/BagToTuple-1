@@ -1,0 +1,6 @@
+
+		             a = load ':INPATH:/singlefile/studentcomplextab10k' using PigStorage() as (m:[], t:(name:chararray, age:int, gpa:double), b:{t:(name:chararray, age:int, gpa:double)});
+		             b = filter a by t is not null;
+	                 c = foreach b generate TOBAG(t) as newBag;
+	                 d = foreach c generate BagToTuple(newBag);
+	                 store d into ':OUTPATH:';

@@ -1,0 +1,5 @@
+a = load ':INPATH:/singlefile/studenttab10k';
+b = order a by $0, $1;
+c = filter b by $1 < 1000;
+d = limit c 100000;
+store d into ':OUTPATH:';

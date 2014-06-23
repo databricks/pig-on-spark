@@ -1,0 +1,5 @@
+register :FUNCPATH:/testudf.jar;
+                                define gm org.apache.pig.test.udf.evalfunc.GoodMonitored();
+                                a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+                                b = foreach a generate gm(name);
+                                store b into ':OUTPATH:';

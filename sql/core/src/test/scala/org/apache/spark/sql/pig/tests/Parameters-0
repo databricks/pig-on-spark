@@ -1,0 +1,4 @@
+%default fname 'studenttab10k'
+a = load ':INPATH:/singlefile/$fname' using PigStorage() as (name, age, gpa);
+b = foreach a generate name;
+store b into ':OUTPATH:';

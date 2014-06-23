@@ -1,0 +1,5 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = load ':INPATH:/singlefile/studentcolon10k' using PigStorage(':') as (name, age, gpa);
+c = union a, b;
+d = order c by name PARALLEL 2;
+store d into ':OUTPATH:';

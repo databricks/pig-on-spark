@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studentnulltab10k' as (name, age, gpa);
+split a into a1 if name > 'm', a2 if name <= 'm'; 
+b = distinct a1;
+store b into ':OUTPATH:';

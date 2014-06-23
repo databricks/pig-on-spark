@@ -1,0 +1,5 @@
+a = load ':INPATH:/singlefile/studentnulltab10k' as (name:chararray, age:int, gpa:double);
+b = filter a by name is null and age is not null and gpa is null;
+c = group b ALL;
+d = foreach c generate COUNT(b);
+store d into ':OUTPATH:';

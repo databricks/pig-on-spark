@@ -1,0 +1,6 @@
+
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age, gpa: double);
+b = foreach a generate age as student_age;
+c = filter b by student_age > 50;
+d = foreach c generate student_age + 10;
+store d into ':OUTPATH:';

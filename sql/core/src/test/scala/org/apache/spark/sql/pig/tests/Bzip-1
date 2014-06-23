@@ -1,0 +1,5 @@
+
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age, gpa);
+store a into ':OUTPATH:.intermediate.bz';
+b = load ':OUTPATH:.intermediate.bz';
+store b into ':OUTPATH:';

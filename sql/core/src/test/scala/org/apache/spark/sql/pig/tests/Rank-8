@@ -1,0 +1,8 @@
+
+									SET default_parallel 25;
+									A = LOAD ':INPATH:/singlefile/biggish' using PigStorage(',') as (rownumber:long,idx:long,tail:bytearray);
+									B = rank A;
+									C = order B by rank_A;
+									D = foreach C generate rank_A,rownumber;
+									store D into ':OUTPATH:';
+								

@@ -1,0 +1,9 @@
+
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = group a by name;
+c = foreach b generate group, AVG(a.gpa)+20 as avg_gpa;
+d = order c by avg_gpa;
+simple_scalar = limit d 1;
+f = filter a by age < (int) simple_scalar.avg_gpa;
+g = order f by name, age, gpa;
+store g into ':OUTPATH:';

@@ -1,0 +1,10 @@
+a = load ':INPATH:/singlefile/studenttab10k'; 
+                            b = order a by $0;
+                            store b into ':OUTPATH:.intermediate';
+                            exec;
+                       	    register :FUNCPATH:/testudf.jar;	     
+			    c = load ':OUTPATH:.intermediate' using org.apache.pig.test.udf.storefunc.SimpleCollectableLoader();
+                            d = filter c by $1 > 30;
+                            e = group d by $0 using 'collected';
+                            f = foreach e generate group, COUNT(d);
+                            store f into ':OUTPATH:';

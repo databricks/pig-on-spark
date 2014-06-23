@@ -1,0 +1,2 @@
+a = load ':INPATH:/dir/studenttab10k' as (name, age, gpa);
+store a into ':OUTPATH:';

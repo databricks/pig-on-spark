@@ -1,0 +1,5 @@
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age,
+gpa);
+b = load ':INPATH:/singlefile/votertab10k' as (name, age, registration, contributions);
+e = join a by name, b by name using 'skewed';
+store e into ':OUTPATH:';

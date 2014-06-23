@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = group a all;
+c = foreach b generate COUNT(a.$0);
+store c into ':OUTPATH:';

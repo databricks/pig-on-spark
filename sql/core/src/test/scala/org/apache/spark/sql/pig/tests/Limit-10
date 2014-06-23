@@ -1,0 +1,8 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name:chararray, age:int, gpa:double);
+b = group a all;
+c = foreach b generate COUNT(a) as count;
+d = load ':INPATH:/singlefile/votertab10k';
+e = group d all;
+f = foreach e generate COUNT(d) as count;
+d = limit a c.count/10+f.count/10;
+store d into ':OUTPATH:';

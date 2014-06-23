@@ -19,6 +19,8 @@ package org.apache.spark.sql.catalyst.expressions
 
 import java.sql.Timestamp
 
+import scala.collection.immutable.{StringLike, StringOps}
+
 import org.apache.spark.sql.catalyst.types._
 
 /** Cast the child expression to the target data type. */
@@ -52,7 +54,10 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression {
 
   // UDFToBoolean
   def castToBoolean: Any => Any = child.dataType match {
-    case StringType => nullOrCast[String](_, _.length() != 0)
+    case StringType => nullOrCast[String](_, s => s.length() != 0)
+    case ByteArrayType => nullOrCast[String](_, s => try s.toBoolean catch {
+      case _: IllegalArgumentException => null
+    })
     case TimestampType => nullOrCast[Timestamp](_, b => {(b.getTime() != 0 || b.getNanos() != 0)})
     case LongType => nullOrCast[Long](_, _ != 0)
     case IntegerType => nullOrCast[Int](_, _ != 0)
@@ -65,17 +70,8 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression {
 
   // TimestampConverter
   def castToTimestamp: Any => Any = child.dataType match {
-    case StringType => nullOrCast[String](_, s => {
-      // Throw away extra if more than 9 decimal places
-      val periodIdx = s.indexOf(".");
-      var n = s
-      if (periodIdx != -1) {
-        if (n.length() - periodIdx > 9) {
-          n = n.substring(0, periodIdx + 10)
-        }
-      }
-      try Timestamp.valueOf(n) catch { case _: java.lang.IllegalArgumentException => null}
-    })
+    case StringType => nullOrCast[String](_, s => stringToTimestamp(s))
+    case ByteArrayType => nullOrCast[String](_, s => stringToTimestamp(s))
     case BooleanType => nullOrCast[Boolean](_, b => new Timestamp((if(b) 1 else 0) * 1000))
     case LongType => nullOrCast[Long](_, l => new Timestamp(l * 1000))
     case IntegerType => nullOrCast[Int](_, i => new Timestamp(i * 1000))
@@ -87,6 +83,18 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression {
     case DoubleType => nullOrCast[Double](_, d => decimalToTimestamp(d))
     // TimestampWritable.floatToTimestamp
     case FloatType => nullOrCast[Float](_, f => decimalToTimestamp(f))
+  }
+
+  private def stringToTimestamp(s: String) = {
+    // Throw away extra if more than 9 decimal places
+    val periodIdx = s.indexOf(".");
+    var n = s
+    if (periodIdx != -1) {
+      if (n.length() - periodIdx > 9) {
+        n = n.substring(0, periodIdx + 10)
+      }
+    }
+    try Timestamp.valueOf(n) catch { case _: java.lang.IllegalArgumentException => null}
   }
 
   private def decimalToTimestamp(d: BigDecimal) = {
@@ -111,10 +119,23 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression {
     ts.getTime / 1000 + ts.getNanos.toDouble / 1000000000
   }
 
+  // Pig's bytearray can read non-integral data and cast it directly to integral types
+  // For example: b = FILTER a BY gpa < 3 will work even if gpa is a double
+  private def byteArrayToIntegral[A](s: String, fromStr: String => A, fromDouble: Double => A): Any = {
+    try fromStr(s) catch {
+      case _: NumberFormatException =>
+        try fromDouble(s.toDouble) catch {
+          case _: NumberFormatException => null
+        }
+    }
+  }
+
   def castToLong: Any => Any = child.dataType match {
     case StringType => nullOrCast[String](_, s => try s.toLong catch {
       case _: NumberFormatException => null
     })
+    case ByteArrayType =>
+      nullOrCast[String](_, s => byteArrayToIntegral(s, (_: String).toLong, (_: Double).toLong))
     case BooleanType => nullOrCast[Boolean](_, b => if(b) 1L else 0L)
     case TimestampType => nullOrCast[Timestamp](_, t => timestampToLong(t))
     case DecimalType => nullOrCast[BigDecimal](_, _.toLong)
@@ -125,6 +146,8 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression {
     case StringType => nullOrCast[String](_, s => try s.toInt catch {
       case _: NumberFormatException => null
     })
+    case ByteArrayType =>
+      nullOrCast[String](_, s => byteArrayToIntegral(s, (_: String).toInt, (_: Double).toInt))
     case BooleanType => nullOrCast[Boolean](_, b => if(b) 1 else 0)
     case TimestampType => nullOrCast[Timestamp](_, t => timestampToLong(t).toInt)
     case DecimalType => nullOrCast[BigDecimal](_, _.toInt)
@@ -135,6 +158,8 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression {
     case StringType => nullOrCast[String](_, s => try s.toShort catch {
       case _: NumberFormatException => null
     })
+    case ByteArrayType =>
+      nullOrCast[String](_, s => byteArrayToIntegral(s, (_: String).toShort, (_: Double).toShort))
     case BooleanType => nullOrCast[Boolean](_, b => if(b) 1.toShort else 0.toShort)
     case TimestampType => nullOrCast[Timestamp](_, t => timestampToLong(t).toShort)
     case DecimalType => nullOrCast[BigDecimal](_, _.toShort)
@@ -145,6 +170,9 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression {
     case StringType => nullOrCast[String](_, s => try s.toByte catch {
       case _: NumberFormatException => null
     })
+    case ByteArrayType => nullOrCast[String](_, s => try s.toByte catch {
+      case _: NumberFormatException => null
+    })
     case BooleanType => nullOrCast[Boolean](_, b => if(b) 1.toByte else 0.toByte)
     case TimestampType => nullOrCast[Timestamp](_, t => timestampToLong(t).toByte)
     case DecimalType => nullOrCast[BigDecimal](_, _.toByte)
@@ -153,6 +181,9 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression {
 
   def castToDecimal: Any => Any = child.dataType match {
     case StringType => nullOrCast[String](_, s => try BigDecimal(s.toDouble) catch {
+      case _: NumberFormatException => null
+    })
+    case ByteArrayType => nullOrCast[String](_, s => try BigDecimal(s.toDouble) catch {
       case _: NumberFormatException => null
     })
     case BooleanType => nullOrCast[Boolean](_, b => if(b) BigDecimal(1) else BigDecimal(0))
@@ -166,6 +197,9 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression {
     case StringType => nullOrCast[String](_, s => try s.toDouble catch {
       case _: NumberFormatException => null
     })
+    case ByteArrayType => nullOrCast[String](_, s => try s.toDouble catch {
+      case _: NumberFormatException => null
+    })
     case BooleanType => nullOrCast[Boolean](_, b => if(b) 1d else 0d)
     case TimestampType => nullOrCast[Timestamp](_, t => timestampToDouble(t))
     case DecimalType => nullOrCast[BigDecimal](_, _.toDouble)
@@ -176,10 +210,18 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression {
     case StringType => nullOrCast[String](_, s => try s.toFloat catch {
       case _: NumberFormatException => null
     })
+    case ByteArrayType => nullOrCast[String](_, s => try s.toFloat catch {
+      case _: NumberFormatException => null
+    })
     case BooleanType => nullOrCast[Boolean](_, b => if(b) 1f else 0f)
     case TimestampType => nullOrCast[Timestamp](_, t => timestampToDouble(t).toFloat)
     case DecimalType => nullOrCast[BigDecimal](_, _.toFloat)
     case x: NumericType => b => x.numeric.asInstanceOf[Numeric[Any]].toFloat(b)
+  }
+
+  def castToByteArray: Any => Any = child.dataType match {
+    case BinaryType => nullOrCast[Array[Byte]](_, new String(_, "UTF-8"))
+    case _ => nullOrCast[Any](_, _.toString)
   }
 
   private lazy val cast: Any => Any = dataType match {
@@ -194,10 +236,18 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression {
     case FloatType => castToFloat
     case LongType => castToLong
     case DoubleType => castToDouble
+    case ByteArrayType => castToByteArray
   }
 
   override def eval(input: Row): Any = {
     val evaluated = child.eval(input)
+
+    /*
+    if (dataType == StringType || dataType == IntegerType) {
+      println(s"eval called on cast: $this")
+    }
+*/
+
     if (evaluated == null) {
       null
     } else {

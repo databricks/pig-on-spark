@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = group a by (name, age);
+c = foreach b generate flatten(group), SUM(a.gpa);
+store c into ':OUTPATH:';

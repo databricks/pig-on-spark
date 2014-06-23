@@ -1,0 +1,4 @@
+register :FUNCPATH:/testudf.jar;
+a = load ':INPATH:/singlefile/textdoc' using TextLoader();
+b = foreach a generate TOKENIZE((chararray)$0);
+store b into ':OUTPATH:' using org.apache.pig.test.udf.storefunc.StringStore();

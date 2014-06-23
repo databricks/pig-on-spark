@@ -1,0 +1,5 @@
+
+a = load ':INPATH:/singlefile/allscalar10k' using PigStorage() as (name:chararray, age:int, gpa:double, instate:boolean);
+b = load ':INPATH:/singlefile/allscalar10k' using PigStorage() as (name:chararray, age:int, gpa:double, instate:boolean);
+C = union onschema a, b;
+store C into ':OUTPATH:';

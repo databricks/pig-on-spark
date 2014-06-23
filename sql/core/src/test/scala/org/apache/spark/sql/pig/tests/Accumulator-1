@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/votertab10k' using PigStorage() as (name, age:int, registration, contributions);
+e = group a by name  parallel 8;
+f = foreach e generate group,  COUNT(a), MAX(a.contributions), MIN(a.contributions) ;
+store f into ':OUTPATH:';

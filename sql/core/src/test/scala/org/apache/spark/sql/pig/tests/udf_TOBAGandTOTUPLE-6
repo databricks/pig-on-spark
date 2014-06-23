@@ -1,0 +1,22 @@
+
+A  = load ':INPATH:/types/numbers.txt' using PigStorage(':') as (intnum1000: int,id: int,intnum5: int,intnum100: int,intnum: int,longnum: long,floatnum: float,doublenum: double);
+B = limit A 10;
+B1= foreach B generate  TOTUPLE( $1, $2, $3);
+T1= foreach B generate  TOTUPLE( $1, $2, $3);
+R1= foreach B generate  TOTUPLE( $1, $0+1, $0+2, $0+3),TOBAG($0+4, $0+1 );
+R2= foreach B generate  TOTUPLE( $0, $1, $2, $3, $4, $5, $6, $7, (int) 8, (int) 9 , $1, $2, $3, $4, $5, $6, $7, (int) 19, (int) 20, $0, $1, $2, $3, $4, $5, $6, $7 , (int) 29, (int) 30, $0, $1, $2, $3, $4, $5, $6, $7, (int) 39, (int) 40 , $1, $2, $3, $4, $5, $6, $7, (int) 19, (int) 20, $0, $1, $2, $3, $4, $5, $5, $7 );
+
+R3= foreach B generate $0, TOTUPLE(0,0,0),  TOBAG( 0, 0 );
+R4= foreach B generate $0, TOTUPLE(null, id, null),  TOBAG( id, null, id,null );
+
+describe R1;
+describe R2;
+describe R3;
+describe R4;
+
+store B into  ':OUTPATH:.1';
+store B1 into ':OUTPATH:.2';
+store R1 into ':OUTPATH:.3';
+store R2 into ':OUTPATH:.4';
+store R3 into ':OUTPATH:.5';
+store R4 into ':OUTPATH:.6';

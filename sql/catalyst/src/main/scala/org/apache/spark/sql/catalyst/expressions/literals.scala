@@ -54,7 +54,7 @@ case class Literal(value: Any, dataType: DataType) extends LeafExpression {
   def nullable = value == null
   def references = Set.empty
 
-  override def toString = if (value != null) value.toString else "null"
+  override def toString = if (value != null) s"${value.toString}:$dataType" else "null"
 
   type EvaluatedType = Any
   override def eval(input: Row):Any = value

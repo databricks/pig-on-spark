@@ -1,0 +1,5 @@
+
+register ':SCRIPTHOMEPATH:/cpython/scriptingudf.py' using streaming_python as myfuncs;
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name:chararray, age, gpa);
+b = foreach a generate myfuncs.byteconcat(name);
+store b into ':OUTPATH:';

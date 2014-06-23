@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studentnulltab10k' as (name, age:long, gpa:float);
+b = group a ALL;
+c = foreach b generate SUM(a.age), MIN(a.age), MAX(a.age), AVG(a.age), SUM(a.gpa), MIN(a.gpa), MAX(a.gpa), AVG(a.gpa);
+store c into ':OUTPATH:';

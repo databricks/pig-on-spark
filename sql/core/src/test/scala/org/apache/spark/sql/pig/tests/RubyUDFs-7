@@ -1,0 +1,6 @@
+
+register ':SCRIPTHOMEPATH:/ruby/scriptingudfs.rb' using jruby as myfuncs;
+register ':SCRIPTHOMEPATH:/ruby/morerubyudfs.rb' using jruby as morefuncs;
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age:int, gpa:double);
+b = foreach a generate myfuncs.square(age), morefuncs.cube(age), morefuncs.CUBE(age);
+store b into ':OUTPATH:';

@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/allscalar10k' using PigStorage() as (name, age, gpa, instate);
+b = foreach a generate (boolean)instate;
+c = filter b by instate == true;
+store c into ':OUTPATH:';

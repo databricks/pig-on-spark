@@ -1,0 +1,14 @@
+
+A  = load ':INPATH:/types/numbers.txt' using PigStorage(':') as (intnum1000: int,id: int,intnum5: int,intnum100: int,intnum: int,longnum: long,floatnum: float,doublenum: double);
+B= limit A 1;
+C = foreach B generate $0,  TOTUPLE((int) $0);
+D = foreach B generate $0,  TOTUPLE((long) $0);
+E = foreach B generate $0,  TOTUPLE((double) $0);
+F = foreach B generate $0,  TOTUPLE((float) $0);
+G = foreach B generate $0,  TOTUPLE((chararray) $0);
+store B into  ':OUTPATH:.1';
+store C into  ':OUTPATH:.2';
+store D into  ':OUTPATH:.3';
+store E into  ':OUTPATH:.4';
+store F into  ':OUTPATH:.5';
+store G into  ':OUTPATH:.6';

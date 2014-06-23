@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/studenttab10k';
+c = order a by $0, $1;
+store c into ':OUTPATH:';

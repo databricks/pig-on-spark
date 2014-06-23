@@ -1,0 +1,9 @@
+a = load ':INPATH:/singlefile/studentnulltab10k'; 
+                            b = order a by $0;
+                            store b into ':OUTPATH:.intermediate';
+                            exec;
+                       	    register :FUNCPATH:/testudf.jar;	     
+			    c = load ':OUTPATH:.intermediate' using org.apache.pig.test.udf.storefunc.SimpleCollectableLoader() as (name:chararray, age:int, gpa:float);
+                            d = group c by $0 using 'collected';
+                            e = foreach d generate group, SUM(c.$1);
+                            store e into ':OUTPATH:';

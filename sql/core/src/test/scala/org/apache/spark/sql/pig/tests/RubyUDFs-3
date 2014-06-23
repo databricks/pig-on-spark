@@ -1,0 +1,5 @@
+
+register ':SCRIPTHOMEPATH:/ruby/scriptingudfs.rb' using jruby as myfuncs;
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age, gpa);
+b = foreach a generate myfuncs.byteconcat(name, name);
+store b into ':OUTPATH:';

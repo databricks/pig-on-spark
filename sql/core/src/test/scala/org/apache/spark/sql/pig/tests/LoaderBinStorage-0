@@ -1,0 +1,6 @@
+register :FUNCPATH:/testudf.jar;
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = foreach a generate name, org.apache.pig.test.udf.evalfunc.Swap(name, age), TOKENIZE((chararray)name), org.apache.pig.test.udf.evalfunc.CreateMap((chararray)name, age); 
+store b into ':OUTPATH:.intermediate' using BinStorage();
+c = load ':OUTPATH:.intermediate' using BinStorage();
+store c into ':OUTPATH:' using org.apache.pig.test.udf.storefunc.StringStore();

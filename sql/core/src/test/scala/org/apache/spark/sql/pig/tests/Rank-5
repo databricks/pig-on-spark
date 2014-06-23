@@ -1,0 +1,7 @@
+
+									SET default_parallel 7;
+									A = LOAD ':INPATH:/singlefile/prerank' using PigStorage(',') as (rownumber:long,rankcabd:long,rankbdaa:long,rankbdca:long,rankaacd:long,rankaaba:long,a:int,b:int,c:int,tail:bytearray);
+									B = rank A by c ASC,b DESC;
+									C = foreach B generate rank_A,c,b;
+									store C into ':OUTPATH:';
+								

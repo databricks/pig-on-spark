@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/votertab10k' using PigStorage() as (name:chararray, age:int, registration, contributions:double);
+b = filter a by name matches '^fred.*' and (chararray)registration matches '^dem.*';
+store b into ':OUTPATH:' using PigStorage;

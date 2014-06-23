@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/$fname' using PigStorage() as (name, age, gpa);
+$setting
+b = foreach a generate name;
+store b into ':OUTPATH:';

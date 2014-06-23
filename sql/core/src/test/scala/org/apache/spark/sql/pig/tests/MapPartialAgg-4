@@ -1,0 +1,5 @@
+ a = load ':INPATH:/singlefile/studenttab10k' as (name: chararray, age: int, gpa: float); 
+                        b = foreach a generate name, age, gpa, flatten(TOBAG(age,age)) as x;
+                        c = group b by age; 
+                        d = foreach c generate group, AVG(b.gpa);
+                        store d into ':OUTPATH:'; 

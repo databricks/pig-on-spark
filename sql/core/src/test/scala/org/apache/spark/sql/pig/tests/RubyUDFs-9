@@ -1,0 +1,7 @@
+
+register ':SCRIPTHOMEPATH:/ruby/scriptingudfs.rb' using jruby as myfuncs;
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age:int, gpa:double);
+b = group a by name;
+c = foreach b generate group, myfuncs.Sum(a.age), myfuncs.Sum(a.gpa);
+d = foreach c generate $0, $1, (double)((int)$2*100)/100;
+store d into ':OUTPATH:';

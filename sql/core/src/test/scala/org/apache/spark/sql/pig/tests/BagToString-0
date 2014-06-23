@@ -1,0 +1,15 @@
+
+                     a = load ':INPATH:/singlefile/studentcomplextab10k' using PigStorage() as (m:[], t:(name:chararray, age:int, gpa:double), b:{t:(name:chararray, age:int, gpa:double)});
+	                 filterA = filter a by b is not null and COUNT(b) > 1;
+                     b = foreach filterA  {
+						   order_desc = order b by age desc;
+						   limit_desc = limit order_desc 1;
+						   order_asc = order b by age asc;
+						   limit_asc = limit order_asc 1;
+						   generate FLATTEN(limit_desc), FLATTEN(limit_asc);
+					 };
+					 c = foreach b generate TOTUPLE(limit_desc::name, limit_desc::age, limit_desc::gpa) as first_t, 
+					                        TOTUPLE(limit_asc::name, limit_asc::age, limit_asc::gpa) as second_t;
+					 d = foreach c generate TOBAG(first_t, second_t) as n_bag;
+					 e = foreach d generate BagToString(n_bag);
+                     store e into ':OUTPATH:';

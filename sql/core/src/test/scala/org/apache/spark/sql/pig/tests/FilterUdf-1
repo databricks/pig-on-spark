@@ -1,0 +1,7 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+				           b = load ':INPATH:/singlefile/votertab10k' as (name, age, registration, contributions);
+				           c = filter a by age < 50;
+				           d = filter b by age < 50;
+				           e = cogroup c by (name, age), d by (name, age);
+				           f = filter e by COUNT(c)> 0 AND COUNT(d)>0;
+				           store f into ':OUTPATH:';

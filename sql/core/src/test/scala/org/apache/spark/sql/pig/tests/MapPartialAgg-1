@@ -1,0 +1,5 @@
+ a = load ':INPATH:/singlefile/studenttab10k' as (name: chararray, age: int, gpa: float); 
+                        b = filter a by age < 22; store b into ':OUTPATH:.1'; 
+                        c = group b by age; 
+                        d = foreach c generate group, SUM(b.gpa);
+                        store d into ':OUTPATH:.2'; 

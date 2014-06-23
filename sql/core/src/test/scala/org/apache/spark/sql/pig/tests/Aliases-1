@@ -1,0 +1,6 @@
+ 
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name:chararray, age:int, gpa: double);
+b = group a by name;
+c = foreach b generate flatten(group), COUNT(a) as cnt;
+d = foreach c generate group;
+store d into ':OUTPATH:';

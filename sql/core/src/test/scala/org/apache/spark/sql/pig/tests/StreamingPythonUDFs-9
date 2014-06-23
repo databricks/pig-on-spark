@@ -1,0 +1,5 @@
+
+register ':SCRIPTHOMEPATH:/cpython/scriptingudf.py' using streaming_python as myfuncs;
+a = load ':INPATH:/singlefile/allscalar10k' as (name:chararray, age:int, gpa:double, instate:boolean);
+b = foreach a generate name, myfuncs.adjustgpa(gpa, instate);
+store b into ':OUTPATH:';

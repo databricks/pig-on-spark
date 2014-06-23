@@ -1,0 +1,6 @@
+register :FUNCPATH:/testudf.jar;
+                                define bad org.apache.pig.test.udf.evalfunc.BadMonitored();
+                                a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+                                b = limit a 1;
+                                c = foreach b generate bad(name);
+                                store b into ':OUTPATH:';

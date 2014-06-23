@@ -1,0 +1,11 @@
+a = load ':INPATH:/singlefile/studenttab10k';
+					b = load ':INPATH:/singlefile/votertab10k'; 
+					c = order a by $0;
+					d = order b by $0;
+					store c into ':OUTPATH:.intermediate1';
+					store d into ':OUTPATH:.intermediate2';
+					exec;					
+					e = load ':OUTPATH:.intermediate1'  as (name:chararray, age:int, gpa:float);
+					f = load ':OUTPATH:.intermediate2'  as (name:chararray, age:int, reg:chararray, contrib:float);
+					g = join e by $0, f by $0 using 'merge';
+					store g into ':OUTPATH:';

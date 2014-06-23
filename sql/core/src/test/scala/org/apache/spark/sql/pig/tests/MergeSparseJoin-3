@@ -1,0 +1,12 @@
+register :PIGGYBANKPATH:/piggybank.jar
+                                a = load ':INPATH:/singlefile/studenttab10k';
+                                b = load ':INPATH:/singlefile/votertab10k';
+                                c = order a by $0,$1;
+                                d = order b by $0,$1;
+                                store c into ':OUTPATH:.intermediate1';
+                                store d into ':OUTPATH:.intermediate2' using org.apache.pig.piggybank.storage.IndexedStorage(',', '0,1');
+                                exec;
+                                e = load ':OUTPATH:.intermediate1';
+                                f = load ':OUTPATH:.intermediate2' using org.apache.pig.piggybank.storage.IndexedStorage(',', '0,1');
+                                g = join e by ($0,$1), f by ($0,$1) using 'merge-sparse';
+                                store g into ':OUTPATH:';

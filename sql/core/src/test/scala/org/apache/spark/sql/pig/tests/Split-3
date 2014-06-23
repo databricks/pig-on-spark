@@ -1,0 +1,5 @@
+a = load ':INPATH:/singlefile/studenttab10k';
+split a into a1 if $0 > 'm', a2 if $0 <= 'm'; 
+b = cogroup a1 by $1, a2 by $1;
+c = foreach b generate flatten($1), flatten($2);
+store c into ':OUTPATH:';

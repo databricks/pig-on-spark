@@ -1,0 +1,11 @@
+define bb BuildBloom('Hash.JENKINS_HASH', 'fixed', '128', '3');
+                                A = LOAD ':INPATH:/singlefile/studenttab10k' AS (name:chararray, age:int, gpa:double);
+                                B = filter A by name == 'alice allen';
+                                C = group B all;
+                                D = foreach C generate bb(B.name);
+                                store D into ':HDFSTMP:/mybloom_1';
+                                exec;
+                                define bloom Bloom(':HDFSTMP:/mybloom_1');
+                                E = LOAD ':INPATH:/singlefile/studenttab10k' AS (name:chararray, age:int, gpa:double);
+                                F = filter E by bloom(name);
+                                store F into ':OUTPATH:';

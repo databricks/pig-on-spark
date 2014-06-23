@@ -1,0 +1,8 @@
+
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age, gpa);
+b = load ':INPATH:/singlefile/votertab10k' as (name, age, registration, contributions);
+c = cogroup a by (name, age), b by (name, age);
+d = filter c by not IsEmpty(a);
+e = filter d by not IsEmpty(b);
+f = foreach e generate flatten(a), flatten(b);
+store f into ':OUTPATH:';

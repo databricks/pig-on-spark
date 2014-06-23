@@ -76,7 +76,8 @@ trait CaseConversionExpression {
   type EvaluatedType = Any
 
   def convert(v: String): String
-  
+
+  override def foldable: Boolean = child.foldable
   def nullable: Boolean = child.nullable
   def dataType: DataType = StringType
 
@@ -128,6 +129,9 @@ case class Like(left: Expression, right: Expression)
   override def matches(regex: Pattern, str: String): Boolean = regex.matcher(str).matches()
 }
 
+/**
+ * Is satisfied if the expression matches any substring of the input (Hive)
+ */
 case class RLike(left: Expression, right: Expression)
   extends BinaryExpression with StringRegexExpression {
 
@@ -137,11 +141,24 @@ case class RLike(left: Expression, right: Expression)
 }
 
 /**
+ * Is satisfied only if the expression matches the whole input (Pig)
+ */
+case class RLikeExact(left: Expression, right: Expression)
+  extends BinaryExpression with StringRegexExpression {
+
+  def symbol = "RLIKE_EXACT"
+  override def escape(v: String): String = v
+  override def matches(regex: Pattern, str: String): Boolean = regex.matcher(str).matches()
+}
+
+/**
  * A function that converts the characters of a string to uppercase.
  */
 case class Upper(child: Expression) extends UnaryExpression with CaseConversionExpression {
   
   override def convert(v: String): String = v.toUpperCase()
+
+  override def toString() = s"Upper($child)"
 }
 
 /**
@@ -150,4 +167,6 @@ case class Upper(child: Expression) extends UnaryExpression with CaseConversionE
 case class Lower(child: Expression) extends UnaryExpression with CaseConversionExpression {
   
   override def convert(v: String): String = v.toLowerCase()
+
+  override def toString() = s"Lower($child)"
 }

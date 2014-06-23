@@ -1,0 +1,6 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = load ':INPATH:/singlefile/votertab10k' as (name, age, registration, contributions);
+c = foreach a generate name, age;
+d = foreach b generate name, age;
+e = union c, d;
+store e into ':OUTPATH:';

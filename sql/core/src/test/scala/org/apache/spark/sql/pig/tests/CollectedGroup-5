@@ -1,0 +1,9 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name:chararray, age:int, gpa:float);
+                            b = order a by age;
+                            store b into ':OUTPATH:.intermediate';
+                            exec;
+                       	    register :FUNCPATH:/testudf.jar;	     
+			    c = load ':OUTPATH:.intermediate' using org.apache.pig.test.udf.storefunc.SimpleCollectableLoader() as (name:chararray, age:int, gpa:float);
+                            d = group c by age using 'collected';
+                            e = foreach d generate group, AVG(c.gpa), COUNT(c.name);
+                            store e into ':OUTPATH:';
