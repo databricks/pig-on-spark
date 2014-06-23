@@ -40,6 +40,10 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.SparkStrategies
 
 import org.apache.spark.sql.parquet.ParquetRelation
+import org.apache.pig.impl.PigContext
+import org.apache.pig.ExecType
+
+import java.util.Properties
 
 /**
  * :: AlphaComponent ::
@@ -75,7 +79,9 @@ class SQLContext(@transient val sparkContext: SparkContext)
 
   /** PIG */
   @transient
-  protected[sql] val pigParser = new PigParser(this)
+  val pc: PigContext = new PigContext(ExecType.LOCAL, new Properties)
+  @transient
+  val pigParser = new PigParser(pc)
   protected[sql] def parsePig(pig: String): LogicalPlan = pigParser(pig)
 
   /**
@@ -165,9 +171,13 @@ class SQLContext(@transient val sparkContext: SparkContext)
    * PIG
    *     Executes a Pig Latin query using Spark, returning the result as a SchemaRDD
    */
-  def pig(pigText: String): SchemaRDD = {
+  def pql(pigText: String): SchemaRDD = {
     val result = new SchemaRDD(this, parsePig(pigText))
-    //result.queryExecution.toRDD
+    // This has some problems with no-ops:
+    // If we comment out this line, then no-op queries (ie. LOAD-STORE) don't get executed
+    // If we leave it in, then non-no-op queries throw an exception because their output file already exists
+    // The resolution will probably come once we figure out how to run Pig queries without needing a load/store
+    //result.queryExecution.toRdd
     result
   }
 

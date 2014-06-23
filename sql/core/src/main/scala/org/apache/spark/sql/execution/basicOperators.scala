@@ -204,7 +204,6 @@ case class PigLoad(
 /**
  * PIG
  * Writes the child RDD to the given file using the given delimiter
- * Just using the simplest Java io right now. TODO: make this fancy
  */
 case class PigStore(
     path: String,
@@ -220,6 +219,7 @@ case class PigStore(
   }
 
   override def output = child.output
+  override def otherCopyArgs = sc :: Nil
 }
 
 /**
