@@ -4,11 +4,18 @@ import org.apache.pig.newplan.{OperatorPlan => PigOperatorPlan, Operator => PigO
 import org.apache.pig.newplan.logical.expression.{LogicalExpressionPlan => PigExpression}
 import org.apache.pig.newplan.logical.relational._
 
-import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, Literal, AttributeReference}
+import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, _}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan => SparkLogicalPlan, _}
 
 import scala.collection.JavaConversions._
 import org.apache.spark.sql.catalyst.types.IntegerType
+import org.apache.spark.sql.catalyst.plans.logical.Sort
+import org.apache.spark.sql.catalyst.expressions.SortOrder
+import org.apache.spark.sql.catalyst.plans.logical.Filter
+import org.apache.spark.sql.catalyst.plans.logical.PigStore
+import org.apache.spark.sql.catalyst.plans.logical.PigLoad
+import org.apache.spark.sql.catalyst.plans.logical.Distinct
+import org.apache.spark.sql.catalyst.plans.logical.Limit
 
 /**
  * Walks the PigOperatorPlan and builds an equivalent SparkLogicalPlan
@@ -66,6 +73,21 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
     updateStructures(pigLoad, load)
   }
 
+  // TODO: Add support for UDF sort functions
+  override def visit(pigSort: LOSort) = {
+    val sparkChild = getChild(pigSort)
+    val planDirecTups = pigSort.getSortColPlans.zip(pigSort.getAscendingCols)
+
+    val sorts = planDirecTups.map{case (exp, dir) =>
+      dir.booleanValue() match {
+        case true => new SortOrder(translateExpression(exp), Ascending)
+        case false => new SortOrder(translateExpression(exp), Descending)
+      }
+    }
+
+    val sort = Sort(sorts.toSeq, sparkChild)
+    updateStructures(pigSort, sort)
+  }
 
   override def visit(pigStore: LOStore) = {
     val sparkChild = getChild(pigStore)

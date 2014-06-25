@@ -5,6 +5,7 @@ import TestSQLContext._
 import org.apache.commons.io.FileUtils
 import java.io.File
 import org.apache.spark.sql.execution.{SparkLogicalPlan, ExistingRdd}
+import org.apache.spark.rdd.RDD
 
 class PigOnSparkSuite extends QueryTest {
 
@@ -117,6 +118,45 @@ class PigOnSparkSuite extends QueryTest {
     checkAnswer(distinctRdd, defaultData)
   }
 
+  // This will probably take a while to run...
+  test("SORT") {
+    val loadQuery = s"a = LOAD '${filepath.format("sporksort.txt")}' " +
+      "USING PigStorage(',') AS (f1:int, f2:int, f3: int, f4:int);"
+
+    // Load data into table
+    deleteFile(defaultDstFile)
+    val loadRdd = pql(loadQuery + pigStoreQuery(alias="a"))
+    loadRdd.collect()
+
+    val perms = Seq(1,2,3,4).permutations
+
+    for (perm <- perms) {
+      //println("perm is " + perm)
+      val descStr = perm.map("f" + _ + " DESC").mkString(", ")
+      //println("descStr is " + descStr)
+      val ascStr = perm.map("f" + _ + " ASC").mkString(", ")
+      //println("ascStr is " + ascStr)
+
+      deleteFile(defaultDstFile)
+      val pigDescQuery = loadQuery + "b = ORDER a BY " + descStr + ";" + pigStoreQuery()
+      //println("pigDescQuery is " + pigDescQuery)
+      val sqlDescQuery = "SELECT * FROM a ORDER BY " + descStr
+      val pigDescRdd = pql(pigDescQuery)
+      val sqlDescRdd = sql(sqlDescQuery)
+      //println("sqlDescRdd is ")
+      //println(sqlDescRdd.collect().toSeq)
+
+      checkAnswer(pigDescRdd, sqlDescRdd.collect().toSeq)
+
+      deleteFile(defaultDstFile)
+      val pigAscQuery = loadQuery + "b = ORDER a BY " + ascStr + ";" + pigStoreQuery()
+      val sqlAscQuery = "SELECT * FROM a ORDER BY " + ascStr
+      val pigAscRdd = pql(pigAscQuery)
+      val sqlAscRdd = sql(sqlAscQuery)
+      checkAnswer(pigAscRdd, sqlAscRdd.collect().toSeq)
+    }
+  }
+
   /**
    * Deletes the destination file, then bookends the query with the default load command
    *  (spork1.txt => a) and store command (b => spork2.txt)
@@ -130,12 +170,12 @@ class PigOnSparkSuite extends QueryTest {
     pigLoadQuery(toLoad, srcFile) + query + pigStoreQuery(toStore, dstFile)
   }
 
-  def pigLoadQuery(alias: String = "a", srcFile: String): String = {
+  def pigLoadQuery(alias: String = "a", srcFile: String = defaultSrcFile): String = {
     s"${alias} = LOAD '${filepath.format(srcFile)}'" +
       s"USING PigStorage('$delimiter') AS (f1:double, f2:int, f3:int);"
   }
 
-  def pigStoreQuery(alias: String = "b", dstFile: String): String = {
+  def pigStoreQuery(alias: String = "b", dstFile: String = defaultDstFile): String = {
     s"STORE ${alias} INTO '${filepath.format(dstFile)}' USING PigStorage('$delimiter');"
   }
 
