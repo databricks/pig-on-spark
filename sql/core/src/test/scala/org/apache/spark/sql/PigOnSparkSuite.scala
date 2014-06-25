@@ -89,13 +89,27 @@ class PigOnSparkSuite extends QueryTest {
     checkAnswer(castRdd, Seq(Seq(1.0, 1, 42), Seq(2.0, 4, 42), Seq(3.0, 9, 42), Seq(4.0, 16, 42), Seq(5.0, 25, 42)))
   }
 
+  test("LIMIT") {
+    val literalQuery = prepPigQuery("b = LIMIT a 3;")
+    val literalRdd = pql(literalQuery)
+    assert(literalRdd.collect().length == 3)
+
+    val expQuery = prepPigQuery("b = LIMIT a (1+2);")
+    val expRdd = pql(expQuery)
+    assert(expRdd.collect().length == 3)
+
+    val complicatedQuery = prepPigQuery("b = LIMIT a 5 - (6/3) + (2 * 3) % (-3) ;")
+    val complicatedRdd = pql(complicatedQuery)
+    assert(complicatedRdd.collect().length == 3)
+  }
+
   /**
    * Deletes the destination file, then bookends the query with the default load command
    *  (spork1.txt => a) and store command (b => spork2.txt)
    */
-  def prepPigQuery(query: String) = {
+  def prepPigQuery(query: String, toStore: String = "b") = {
     deleteFile(defaultDstFile)
-    pigLoadQuery("a", defaultSrcFile) + query + pigStoreQuery("b", defaultDstFile)
+    pigLoadQuery("a", defaultSrcFile) + query + pigStoreQuery(toStore, defaultDstFile)
   }
 
   def pigLoadQuery(alias: String, srcFile: String): String = {

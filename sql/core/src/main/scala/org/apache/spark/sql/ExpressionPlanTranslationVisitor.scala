@@ -1,7 +1,9 @@
 package org.apache.spark.sql
 
 import org.apache.pig.newplan.logical.expression.{
-LogicalExpression => PigExpression, BinaryExpression => PigBinaryExpression, UnaryExpression => PigUnaryExpression _}
+LogicalExpression => PigExpression,
+BinaryExpression => PigBinaryExpression,
+UnaryExpression => PigUnaryExpression, _}
 import org.apache.pig.newplan.DependencyOrderWalker
 
 import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, _}
@@ -17,15 +19,16 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan)
 
   // predicate ? left : right
   override def visit(pigCond: BinCondExpression) {
-    val predicate = pigToSparkMap.get(pigCond.getCondition).getOrElse(throw new NoSuchElementException)
+    val pred = pigToSparkMap.get(pigCond.getCondition).getOrElse(throw new NoSuchElementException)
     val left = pigToSparkMap.get(pigCond.getLhs).getOrElse(throw new NoSuchElementException)
     val right = pigToSparkMap.get(pigCond.getRhs).getOrElse(throw new NoSuchElementException)
 
-    val cond = new If(predicate, left, right)
+    val cond = new If(pred, left, right)
     updateStructures(pigCond, cond)
   }
 
-  // TODO: Allow this to handle more general FuncSpec values (right now we can only handle casts to and from basic types)
+  // TODO: Allow this to handle more general FuncSpec values
+  //  (right now we can only handle casts to and from basic types)
   override def visit(pigCast: CastExpression) {
     val alias = pigCast.getFieldSchema.alias
     val dstType = translateType(pigCast.getFieldSchema.`type`)
