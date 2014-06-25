@@ -18,6 +18,9 @@ class PigOnSparkSuite extends QueryTest {
   val sqlSelectQuery = "SELECT * FROM %s"
   val sqlFilterQuery = "SELECT f1, f2, f3 FROM %s WHERE (f1 > 2.0 AND  f2 > 3)"
 
+  val defaultData =
+    Seq(Seq(1.0, 1, 42), Seq(2.0, 4, 42), Seq(3.0, 9, 42), Seq(4.0, 16, 42), Seq(5.0, 25, 42))
+
   test("LOAD properly registers table") {
     deleteFile("spork2.txt")
 
@@ -85,8 +88,7 @@ class PigOnSparkSuite extends QueryTest {
   test("FILTER with cast") {
     val castQuery = prepPigQuery("b = FILTER a BY (double) f3 == 42.0;")
     val castRdd = pql(castQuery)
-
-    checkAnswer(castRdd, Seq(Seq(1.0, 1, 42), Seq(2.0, 4, 42), Seq(3.0, 9, 42), Seq(4.0, 16, 42), Seq(5.0, 25, 42)))
+    checkAnswer(castRdd, defaultData)
   }
 
   test("LIMIT") {
@@ -103,20 +105,37 @@ class PigOnSparkSuite extends QueryTest {
     assert(complicatedRdd.collect().length == 3)
   }
 
+  test("DISTINCT") {
+    deleteFile(defaultDstFile)
+    val nonDistinctQuery = pigLoadStoreQuery("a", "spork1dup.txt", defaultDstFile)
+    val nonDistinctRdd = pql(nonDistinctQuery)
+    checkAnswer(nonDistinctRdd,
+      defaultData ++ defaultData ++ defaultData ++ defaultData)
+
+    val distinctQuery = prepPigQuery("b = DISTINCT a;", srcFile = "spork1dup.txt")
+    val distinctRdd = pql(distinctQuery)
+    checkAnswer(distinctRdd, defaultData)
+  }
+
   /**
    * Deletes the destination file, then bookends the query with the default load command
    *  (spork1.txt => a) and store command (b => spork2.txt)
    */
-  def prepPigQuery(query: String, toStore: String = "b") = {
+  def prepPigQuery(query: String,
+                   toLoad: String = "a",
+                   srcFile: String = defaultSrcFile,
+                   toStore: String = "b",
+                   dstFile: String = defaultDstFile) = {
     deleteFile(defaultDstFile)
-    pigLoadQuery("a", defaultSrcFile) + query + pigStoreQuery(toStore, defaultDstFile)
+    pigLoadQuery(toLoad, srcFile) + query + pigStoreQuery(toStore, dstFile)
   }
 
-  def pigLoadQuery(alias: String, srcFile: String): String = {
-    s"${alias} = LOAD '${filepath.format(srcFile)}' USING PigStorage('$delimiter') AS (f1:double, f2:int, f3:int);"
+  def pigLoadQuery(alias: String = "a", srcFile: String): String = {
+    s"${alias} = LOAD '${filepath.format(srcFile)}'" +
+      s"USING PigStorage('$delimiter') AS (f1:double, f2:int, f3:int);"
   }
 
-  def pigStoreQuery(alias: String, dstFile: String): String = {
+  def pigStoreQuery(alias: String = "b", dstFile: String): String = {
     s"STORE ${alias} INTO '${filepath.format(dstFile)}' USING PigStorage('$delimiter');"
   }
 

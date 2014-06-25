@@ -17,6 +17,12 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
   extends LogicalRelationalNodesVisitor(plan, new DependencyOrderWalker(plan))
   with PigTranslationVisitor[PigOperator, SparkLogicalPlan] {
 
+  override def visit(pigDistinct: LODistinct) = {
+    val sparkChild = getChild(pigDistinct)
+    val distinct = Distinct(sparkChild)
+    updateStructures(pigDistinct, distinct)
+  }
+
   override def visit(pigFilter: LOFilter) = {
     val sparkChild = getChild(pigFilter)
     val sparkExpression = translateExpression(pigFilter.getFilterPlan)
