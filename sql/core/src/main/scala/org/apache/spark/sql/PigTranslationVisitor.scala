@@ -68,6 +68,10 @@ trait PigTranslationVisitor[A <: PigOperator, B <: SparkTreeNode[B]] {
     }
   }
 
+  protected  def getTranslation(pigOp: A) = {
+    pigToSparkMap.get(pigOp).getOrElse(throw new NoSuchElementException)
+  }
+
   /**
    * Sets a mapping from the (Pig) parents of the just-translated Pig operator to its translation
    *  and adds the translated operator to our list of Spark operators.

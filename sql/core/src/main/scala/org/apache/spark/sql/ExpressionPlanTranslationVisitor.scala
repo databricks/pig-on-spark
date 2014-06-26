@@ -19,9 +19,9 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan)
 
   // predicate ? left : right
   override def visit(pigCond: BinCondExpression) {
-    val pred = pigToSparkMap.get(pigCond.getCondition).getOrElse(throw new NoSuchElementException)
-    val left = pigToSparkMap.get(pigCond.getLhs).getOrElse(throw new NoSuchElementException)
-    val right = pigToSparkMap.get(pigCond.getRhs).getOrElse(throw new NoSuchElementException)
+    val pred = getTranslation(pigCond.getCondition)
+    val left = getTranslation(pigCond.getLhs)
+    val right = getTranslation(pigCond.getRhs)
 
     val cond = new If(pred, left, right)
     updateStructures(pigCond, cond)
@@ -46,7 +46,7 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan)
   }
 
   override def visit(pigLookup: MapLookupExpression) {
-    val map = pigToSparkMap.get(pigLookup.getMap).getOrElse(throw new NoSuchElementException)
+    val map = getTranslation(pigLookup.getMap)
     // Pig keys are always strings
     val key = new Literal(pigLookup.getLookupKey, StringType)
 
@@ -55,8 +55,8 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan)
   }
 
   override def visit(pigNE: NotEqualExpression) {
-    val left = pigToSparkMap.get(pigNE.getLhs).getOrElse(throw new NoSuchElementException)
-    val right = pigToSparkMap.get(pigNE.getRhs).getOrElse(throw new NoSuchElementException)
+    val left = getTranslation(pigNE.getLhs)
+    val right = getTranslation(pigNE.getRhs)
 
     val equals = new Equals(left, right)
     val not = new Not(equals)
@@ -78,7 +78,7 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan)
   override def visit(pigExp: NotExpression)      { unaryExpression(pigExp) }
 
   protected def unaryExpression(pigExp: PigUnaryExpression) {
-    val exp = pigToSparkMap.get(pigExp.getExpression).getOrElse(throw new NoSuchElementException)
+    val exp = getTranslation(pigExp.getExpression)
 
     val sparkClass = pigExp match {
       case _: IsNullExpression => IsNull
@@ -106,8 +106,8 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan)
   override def visit(pigExp: SubtractExpression)         { binaryExpression(pigExp) }
 
   protected def binaryExpression(pigExp: PigBinaryExpression) {
-    val left = pigToSparkMap.get(pigExp.getLhs).getOrElse(throw new NoSuchElementException)
-    val right = pigToSparkMap.get(pigExp.getRhs).getOrElse(throw new NoSuchElementException)
+    val left = getTranslation(pigExp.getLhs)
+    val right = getTranslation(pigExp.getRhs)
 
     val sparkClass = pigExp match {
       case _: AddExpression => Add

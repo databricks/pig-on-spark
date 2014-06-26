@@ -19,8 +19,10 @@ class PigOnSparkSuite extends QueryTest {
   val sqlSelectQuery = "SELECT * FROM %s"
   val sqlFilterQuery = "SELECT f1, f2, f3 FROM %s WHERE (f1 > 2.0 AND  f2 > 3)"
 
-  val defaultData =
+  val defaultData: Seq[Seq[Any]] =
     Seq(Seq(1.0, 1, 42), Seq(2.0, 4, 42), Seq(3.0, 9, 42), Seq(4.0, 16, 42), Seq(5.0, 25, 42))
+  val auxData =
+    Seq(Seq("Mal", 1), Seq("Zoey", 2), Seq("Jayne", 3))
 
   test("LOAD properly registers table") {
     deleteFile("spork2.txt")
@@ -107,7 +109,7 @@ class PigOnSparkSuite extends QueryTest {
   }
 
   test("DISTINCT") {
-    deleteFile(defaultDstFile)
+    deleteFile()
     val nonDistinctQuery = pigLoadStoreQuery("a", "spork1dup.txt", defaultDstFile)
     val nonDistinctRdd = pql(nonDistinctQuery)
     checkAnswer(nonDistinctRdd,
@@ -118,43 +120,50 @@ class PigOnSparkSuite extends QueryTest {
     checkAnswer(distinctRdd, defaultData)
   }
 
-  // This will probably take a while to run...
+  // This takes a while to run...
+  /*
   test("SORT") {
     val loadQuery = s"a = LOAD '${filepath.format("sporksort.txt")}' " +
       "USING PigStorage(',') AS (f1:int, f2:int, f3: int, f4:int);"
 
     // Load data into table
-    deleteFile(defaultDstFile)
+    deleteFile()
     val loadRdd = pql(loadQuery + pigStoreQuery(alias="a"))
     loadRdd.collect()
 
     val perms = Seq(1,2,3,4).permutations
 
     for (perm <- perms) {
-      //println("perm is " + perm)
       val descStr = perm.map("f" + _ + " DESC").mkString(", ")
-      //println("descStr is " + descStr)
       val ascStr = perm.map("f" + _ + " ASC").mkString(", ")
-      //println("ascStr is " + ascStr)
 
-      deleteFile(defaultDstFile)
+      deleteFile()
       val pigDescQuery = loadQuery + "b = ORDER a BY " + descStr + ";" + pigStoreQuery()
-      //println("pigDescQuery is " + pigDescQuery)
       val sqlDescQuery = "SELECT * FROM a ORDER BY " + descStr
       val pigDescRdd = pql(pigDescQuery)
       val sqlDescRdd = sql(sqlDescQuery)
-      //println("sqlDescRdd is ")
-      //println(sqlDescRdd.collect().toSeq)
-
       checkAnswer(pigDescRdd, sqlDescRdd.collect().toSeq)
 
-      deleteFile(defaultDstFile)
+      deleteFile()
       val pigAscQuery = loadQuery + "b = ORDER a BY " + ascStr + ";" + pigStoreQuery()
       val sqlAscQuery = "SELECT * FROM a ORDER BY " + ascStr
       val pigAscRdd = pql(pigAscQuery)
       val sqlAscRdd = sql(sqlAscQuery)
       checkAnswer(pigAscRdd, sqlAscRdd.collect().toSeq)
     }
+  }
+  */
+
+  test("CROSS") {
+    deleteFile()
+    val crossQuery = (pigLoadQuery()
+      + s"b = LOAD '${filepath.format("sporkcross.txt")}' USING PigStorage(',') AS (f1:chararray, f2:int);"
+      + "c = CROSS a, b;"
+      + pigStoreQuery(alias = "c"))
+    val crossRdd = pql(crossQuery)
+
+    val crossData = defaultData.flatMap( x => auxData.map( y => x.toSeq ++ y.toSeq))
+    checkAnswer(crossRdd, crossData)
   }
 
   /**
@@ -166,7 +175,7 @@ class PigOnSparkSuite extends QueryTest {
                    srcFile: String = defaultSrcFile,
                    toStore: String = "b",
                    dstFile: String = defaultDstFile) = {
-    deleteFile(defaultDstFile)
+    deleteFile(dstFile)
     pigLoadQuery(toLoad, srcFile) + query + pigStoreQuery(toStore, dstFile)
   }
 
@@ -189,5 +198,5 @@ class PigOnSparkSuite extends QueryTest {
     pigLoadQuery(alias, srcFile) + pigStoreQuery(alias, dstFile)
   }
 
-  def deleteFile(name: String) { FileUtils.deleteDirectory(new File(filepath.format(name))) }
+  def deleteFile(name: String = defaultDstFile) { FileUtils.deleteDirectory(new File(filepath.format(name))) }
 }

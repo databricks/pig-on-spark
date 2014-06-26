@@ -16,6 +16,7 @@ import org.apache.spark.sql.catalyst.plans.logical.PigStore
 import org.apache.spark.sql.catalyst.plans.logical.PigLoad
 import org.apache.spark.sql.catalyst.plans.logical.Distinct
 import org.apache.spark.sql.catalyst.plans.logical.Limit
+import org.apache.spark.sql.catalyst.plans.Inner
 
 /**
  * Walks the PigOperatorPlan and builds an equivalent SparkLogicalPlan
@@ -23,6 +24,28 @@ import org.apache.spark.sql.catalyst.plans.logical.Limit
 class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
   extends LogicalRelationalNodesVisitor(plan, new DependencyOrderWalker(plan))
   with PigTranslationVisitor[PigOperator, SparkLogicalPlan] {
+
+  override def visit(pigCross: LOCross) = {
+    val inputs = pigCross.getInputs.map(getTranslation)
+    var left: SparkLogicalPlan = null
+    var right: SparkLogicalPlan = null
+
+    inputs.length match {
+      case x if x < 1 => throw new IllegalArgumentException("Too few inputs to CROSS")
+      case 1 =>
+        left = inputs.head
+        right = inputs.head
+      case 2 =>
+        left = inputs.head
+        right = inputs.tail.head
+      case _ => throw new IllegalArgumentException("Too many inputs to CROSS")
+    }
+
+    // Catalyst handles an Inner join with no predicate as a Cartesian product
+    // See SparkStrategies.scala:CartesianProduct
+    val join = Join(left, right, Inner, None)
+    updateStructures(pigCross, join)
+  }
 
   override def visit(pigDistinct: LODistinct) = {
     val sparkChild = getChild(pigDistinct)
