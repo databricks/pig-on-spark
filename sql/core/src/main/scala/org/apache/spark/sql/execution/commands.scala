@@ -21,6 +21,7 @@ import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SQLContext, Row}
 import org.apache.spark.sql.catalyst.expressions.{GenericRow, Attribute}
+import org.apache.spark.SparkContext
 
 trait Command {
   /**
@@ -112,4 +113,31 @@ case class CacheCommand(tableName: String, doCache: Boolean)(@transient context:
   }
 
   override def output: Seq[Attribute] = Seq.empty
+}
+
+/**
+ * PIG
+ * Writes the child RDD to the given file using the given delimiter
+ */
+case class PigStoreCommand(
+                     path: String,
+                     delimiter: String,
+                     child: SparkPlan)(
+                     @transient sc: SparkContext)
+  extends UnaryNode with Command {
+
+  override protected[sql] lazy val sideEffectResult: Seq[Row] = {
+    val childRdd = child.execute()
+    assert(childRdd != null)
+    childRdd.saveAsCSVFile(path, delimiter)
+    childRdd.collect().toSeq
+  }
+
+  override def execute() = {
+    val childRows = sideEffectResult
+    sc.parallelize(childRows)
+  }
+
+  override def output = child.output
+  override def otherCopyArgs = sc :: Nil
 }

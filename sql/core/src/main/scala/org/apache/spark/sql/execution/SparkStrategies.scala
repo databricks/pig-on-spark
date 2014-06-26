@@ -241,8 +241,6 @@ private[sql] abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
         execution.ExistingRdd(Nil, singleRowRdd) :: Nil
       case logical.PigLoad(path, delimiter, alias, output) =>
         execution.PigLoad(path, delimiter, alias, output)(sparkContext, sqlContext) :: Nil
-      case logical.PigStore(path, delimiter, child) =>
-        execution.PigStore(path, delimiter, planLater(child))(sparkContext) :: Nil
       case logical.Repartition(expressions, child) =>
         execution.Exchange(HashPartitioning(expressions, numPartitions), planLater(child)) :: Nil
       case SparkLogicalPlan(existingPlan) => existingPlan :: Nil
@@ -259,6 +257,8 @@ private[sql] abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
         Seq(execution.ExplainCommand(executedPlan, plan.output)(context))
       case logical.CacheCommand(tableName, cache) =>
         Seq(execution.CacheCommand(tableName, cache)(context))
+      case logical.PigStore(path, delimiter, child) =>
+        Seq(execution.PigStoreCommand(path, delimiter, planLater(child))(sparkContext))
       case _ => Nil
     }
   }

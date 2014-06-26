@@ -202,27 +202,6 @@ case class PigLoad(
 }
 
 /**
- * PIG
- * Writes the child RDD to the given file using the given delimiter
- */
-case class PigStore(
-    path: String,
-    delimiter: String,
-    child: SparkPlan)(
-  @transient val sc: SparkContext)
-  extends UnaryNode {
-  override def execute() = {
-    val childRdd = child.execute()
-    assert(childRdd != null)
-    childRdd.saveAsCSVFile(path, delimiter)
-    childRdd
-  }
-
-  override def output = child.output
-  override def otherCopyArgs = sc :: Nil
-}
-
-/**
  * :: DeveloperApi ::
  */
 @DeveloperApi

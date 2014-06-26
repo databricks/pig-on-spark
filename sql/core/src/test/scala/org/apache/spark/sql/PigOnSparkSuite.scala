@@ -27,9 +27,8 @@ class PigOnSparkSuite extends QueryTest {
   test("LOAD properly registers table") {
     deleteFile("spork2.txt")
 
-    // Translate and exe; this should load spork1.txt into a table called 'a'
-    val slp = pp(pigLoadStoreQuery("a", "spork1.txt", "spork2.txt"))
-    TestSQLContext.planner.BasicOperators(slp).head.execute()
+    // This should load spork1.txt into a table called 'a'
+    val rdd = pql(pigLoadStoreQuery("a", "spork1.txt", "spork2.txt"))
     val testAnswer = sql(sqlFilterQuery.format("a"))
     checkAnswer(testAnswer, Seq(Seq(3.0, 9, 42), Seq(4.0, 16, 42), Seq(5.0, 25, 42)))
   }
@@ -50,17 +49,10 @@ class PigOnSparkSuite extends QueryTest {
     deleteFile("spork3.txt")
 
     // b is a table that comes from loading a known-good file
-    val storeLoadPlan = pp(pigLoadStoreQuery("b", "spork1.txt", "spork2.txt"))
-    // This nonsense somehow avoids the no-op problem. Hmm...
-    TestSQLContext.planner.BasicOperators(storeLoadPlan).head.execute()
-
-    //val slRdd = pql(pigLoadStoreQuery("b", "spork1.txt", "spork2.txt"))
+    val slRdd = pql(pigLoadStoreQuery("b", "spork1.txt", "spork2.txt"))
 
     // c is a table that comes from loading the output of a STORE
-    val loadPlan = pp(pigLoadStoreQuery("c", "spork2.txt", "spork3.txt"))
-    TestSQLContext.planner.BasicOperators(loadPlan).head.execute()
-
-    //val lRdd = pql(pigLoadStoreQuery("c", "spork2.txt", "spork3.txt"))
+    val lRdd = pql(pigLoadStoreQuery("c", "spork2.txt", "spork3.txt"))
 
     val refAnswer = sql(sqlSelectQuery.format("b"))
     val testAnswer = sql(sqlSelectQuery.format("c"))
@@ -167,8 +159,8 @@ class PigOnSparkSuite extends QueryTest {
   }
 
   /**
-   * Deletes the destination file, then bookends the query with the default load command
-   *  (spork1.txt => a) and store command (b => spork2.txt)
+   * Deletes the destination file, then bookends the query with the given load command
+   *  (default: spork1.txt => a) and store command (default: b => spork2.txt)
    */
   def prepPigQuery(query: String,
                    toLoad: String = "a",

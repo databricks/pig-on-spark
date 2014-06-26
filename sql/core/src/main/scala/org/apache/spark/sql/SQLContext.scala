@@ -166,11 +166,7 @@ class SQLContext(@transient val sparkContext: SparkContext)
    */
   def pql(pigText: String): SchemaRDD = {
     val result = new SchemaRDD(this, parsePig(pigText))
-    // This has some problems with no-ops:
-    // If we comment out this line, then no-op queries (ie. LOAD-STORE) don't get executed
-    // If we leave it in, then non-no-op queries throw an exception because their output file already exists
-    // The resolution will probably come once we figure out how to run Pig queries without needing a load/store
-    //result.queryExecution.toRdd
+    result.queryExecution.toRdd
     result
   }
 
