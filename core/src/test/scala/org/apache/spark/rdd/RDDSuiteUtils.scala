@@ -15,22 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.spark
+package org.apache.spark.rdd
 
-import org.apache.spark.serializer.Serializer
+object RDDSuiteUtils {
+  case class Person(first: String, last: String, age: Int)
 
-private[spark] abstract class ShuffleFetcher {
+  object AgeOrdering extends Ordering[Person] {
+    def compare(a:Person, b:Person) = a.age compare b.age
+  }
 
-  /**
-   * Fetch the shuffle outputs for a given ShuffleDependency.
-   * @return An iterator over the elements of the fetched shuffle outputs.
-   */
-  def fetch[T](
-      shuffleId: Int,
-      reduceId: Int,
-      context: TaskContext,
-      serializer: Serializer = SparkEnv.get.serializer): Iterator[T]
-
-  /** Stop the fetcher */
-  def stop() {}
+  object NameOrdering extends Ordering[Person] {
+    def compare(a:Person, b:Person) =
+      implicitly[Ordering[Tuple2[String,String]]].compare((a.last, a.first), (b.last, b.first))
+  }
 }
