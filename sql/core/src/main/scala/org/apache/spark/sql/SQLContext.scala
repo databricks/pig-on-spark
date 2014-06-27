@@ -40,6 +40,10 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.SparkStrategies
 
 import org.apache.spark.sql.parquet.ParquetRelation
+import org.apache.pig.impl.PigContext
+import org.apache.pig.ExecType
+
+import java.util.Properties
 
 /**
  * :: AlphaComponent ::
@@ -72,6 +76,13 @@ class SQLContext(@transient val sparkContext: SparkContext)
   protected[sql] def executeSql(sql: String): this.QueryExecution = executePlan(parseSql(sql))
   protected[sql] def executePlan(plan: LogicalPlan): this.QueryExecution =
     new this.QueryExecution { val logical = plan }
+
+  /** PIG */
+  @transient
+  val pc: PigContext = new PigContext(ExecType.LOCAL, new Properties)
+  @transient
+  val pigParser = new PigParser(pc)
+  protected[sql] def parsePig(pig: String): LogicalPlan = pigParser(pig)
 
   /**
    * :: DeveloperApi ::
@@ -149,6 +160,16 @@ class SQLContext(@transient val sparkContext: SparkContext)
    */
   def sql(sqlText: String): SchemaRDD = new SchemaRDD(this, parseSql(sqlText))
 
+  /**
+   * PIG
+   *     Executes a Pig Latin query using Spark, returning the result as a SchemaRDD
+   */
+  def pql(pigText: String): SchemaRDD = {
+    val result = new SchemaRDD(this, parsePig(pigText))
+    result.queryExecution.toRdd
+    result
+  }
+
   /** Returns the specified table as a SchemaRDD */
   def table(tableName: String): SchemaRDD =
     new SchemaRDD(this, catalog.lookupRelation(None, tableName))
@@ -191,6 +212,7 @@ class SQLContext(@transient val sparkContext: SparkContext)
 
   protected[sql] class SparkPlanner extends SparkStrategies {
     val sparkContext = self.sparkContext
+    val sqlContext = self
 
     def numPartitions = self.numShufflePartitions
 

@@ -810,6 +810,16 @@ class RDDSuite extends FunSuite with SharedSparkContext {
     assert(ancestors6.count(_.isInstanceOf[CyclicalDependencyRDD[_]]) === 3)
   }
 
+  test("toDebugString") {
+    val rdd1 = sc.parallelize(1 to 100, 4)
+    val rdd2 = sc.parallelize(1 to 100, 5)
+    val rdd3 = rdd1.map(_ + 1)
+    val rdd4 = rdd2.map(i => (i,i))
+    val rdd5 = rdd3.map(i => (i,i))
+    val rdd6 = rdd5.join(rdd4)
+    println(rdd6.toDebugString)
+  }
+
   /** A contrived RDD that allows the manual addition of dependencies after creation. */
   private class CyclicalDependencyRDD[T: ClassTag] extends RDD[T](sc, Nil) {
     private val mutableDependencies: ArrayBuffer[Dependency[_]] = ArrayBuffer.empty

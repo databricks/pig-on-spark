@@ -1144,6 +1144,17 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * Save this RDD as a CSV file with the given delimiter
+   */
+  def saveAsCSVFile(path: String, delimiter: String = ",") {
+    val stringRdd = this.map(x => x match {
+      case to: TraversableOnce[Any] => to.mkString(delimiter)
+      case _ => x.toString
+    })
+    stringRdd.saveAsTextFile(path)
+  }
+
+  /**
    * Save this RDD as a SequenceFile of serialized objects.
    */
   def saveAsObjectFile(path: String) {

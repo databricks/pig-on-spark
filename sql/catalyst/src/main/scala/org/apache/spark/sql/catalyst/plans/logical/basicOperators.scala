@@ -185,6 +185,28 @@ case class Distinct(child: LogicalPlan) extends UnaryNode {
   def references = child.outputSet
 }
 
+/**
+ * PIG
+ * output may be totally wrong
+ */
+case class PigLoad(
+    path: String,
+    delimiter: String,
+    alias: String,
+    output: Seq[Attribute]) extends LeafNode {}
+
+/**
+ * PIG
+ * I'm modeling this off of WriteToFile, so the output and references may need to be changed
+ */
+case class PigStore(
+    path: String,
+    delimiter: String,
+    child: LogicalPlan) extends UnaryNode {
+  def output = child.output
+  def references = Set.empty
+}
+
 case object NoRelation extends LeafNode {
   def output = Nil
 }
