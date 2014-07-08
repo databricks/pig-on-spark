@@ -2,6 +2,7 @@ package org.apache.spark.sql.pig
 
 import org.apache.pig.newplan.DependencyOrderWalker
 import org.apache.pig.newplan.logical.expression._
+import scala.collection.JavaConversions._
 
 class PigLogicalExpressionPlanDumpVisitor(plan: LogicalExpressionPlan, indent: String = "")
   extends LogicalExpressionVisitor(plan, new DependencyOrderWalker(plan, true)) {
@@ -23,7 +24,19 @@ class PigLogicalExpressionPlanDumpVisitor(plan: LogicalExpressionPlan, indent: S
   override def visit(op: EqualExpression) = { dumpExp(op) }
 
 
-  override def visit(op: ProjectExpression) = { dumpExp(op) }
+  override def visit(op: ProjectExpression) = {
+    dumpExp(op)
+    printWithIndent("   inputNum: " + op.getInputNum)
+    printWithIndent("   colNum: " + op.getColNum)
+    printWithIndent("   colAlias: " + op.getColAlias)
+    printWithIndent("   projectedOperator: " + op.getProjectedOperator)
+    printWithIndent("   attachedRelationalOp: " + op.getAttachedRelationalOp)
+    printWithIndent("   attachedRelationalOp.getSchema: " + op.getAttachedRelationalOp.getSchema)
+    printWithIndent("   attachedRelationalOp.predecessors:")
+    op.getAttachedRelationalOp.getPlan.getPredecessors(op.getAttachedRelationalOp).map{
+      pred => printWithIndent("      " + pred)
+    }
+  }
 
 
   override def visit(op: ConstantExpression) = { dumpExp(op) }

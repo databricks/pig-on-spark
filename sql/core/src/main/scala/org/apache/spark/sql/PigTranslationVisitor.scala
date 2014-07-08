@@ -68,7 +68,7 @@ trait PigTranslationVisitor[A <: PigOperator, B <: SparkTreeNode[B]] {
     }
   }
 
-  protected  def getTranslation(pigOp: A) = {
+  def getTranslation(pigOp: A) = {
     pigToSparkMap.get(pigOp).getOrElse(throw new NoSuchElementException)
   }
 
@@ -95,18 +95,6 @@ trait PigTranslationVisitor[A <: PigOperator, B <: SparkTreeNode[B]] {
 
     pigToSparkMap += Tuple2(pigOp, sparkOp)
     sparkNodes = sparkOp +: sparkNodes
-  }
-
-  /**
-   * Parses the given schema from Pig types into Catalyst types
-   */
-  protected def translateSchema(pigSchema: LogicalSchema): Seq[AttributeReference] = {
-    val fields = pigSchema.getFields
-    val newSchema = fields.map { case field =>
-      val dataType = translateType(field.`type`)
-      AttributeReference(field.alias, dataType, true)()
-    }
-    newSchema.toSeq
   }
 }
 

@@ -22,7 +22,7 @@ class PigOnSparkSuite extends QueryTest {
   val defaultData: Seq[Seq[Any]] =
     Seq(Seq(1.0, 1, 42), Seq(2.0, 4, 42), Seq(3.0, 9, 42), Seq(4.0, 16, 42), Seq(5.0, 25, 42))
   val auxData =
-    Seq(Seq("Mal", 1), Seq("Zoey", 2), Seq("Jayne", 3))
+    Seq(Seq("River", 0), Seq("Mal", 1), Seq("Zoey", 2), Seq("Jayne", 3))
 
   test("LOAD properly registers table") {
     deleteFile("spork2.txt")
@@ -154,9 +154,73 @@ class PigOnSparkSuite extends QueryTest {
       + pigStoreQuery(alias = "c"))
     val crossRdd = pql(crossQuery)
 
-    val crossData = defaultData.flatMap( x => auxData.map( y => x.toSeq ++ y.toSeq))
+    val crossData = defaultData.flatMap(x => auxData.map(y => x.toSeq ++ y.toSeq))
     checkAnswer(crossRdd, crossData)
   }
+
+  test("INNER JOIN") {
+    deleteFile()
+    val joinQuery = (pigLoadQuery()
+      + s"b = LOAD '${filepath.format("sporkcross.txt")}' USING PigStorage(',') AS (f1:chararray, f2:int);"
+      + "c = JOIN a BY f1, b BY f2;"
+      + pigStoreQuery(alias = "c"))
+    val joinRdd = pql(joinQuery)
+
+    val joinData = Seq(Seq(1.0,1,42,"Mal",1), Seq(2.0,4,42,"Zoey",2), Seq(3.0,9,42,"Jayne",3))
+    checkAnswer(joinRdd, joinData)
+  }
+
+  test("LEFT JOIN") {
+    deleteFile()
+    val joinQuery = (pigLoadQuery()
+      + s"b = LOAD '${filepath.format("sporkcross.txt")}' USING PigStorage(',') AS (f1:chararray, f2:int);"
+      + "c = JOIN a BY f1 LEFT, b BY f2;"
+      + pigStoreQuery(alias = "c"))
+    val joinRdd = pql(joinQuery)
+
+    val joinData = Seq(
+      Seq(1.0,1,42,"Mal",1),
+      Seq(2.0,4,42,"Zoey",2),
+      Seq(3.0,9,42,"Jayne",3),
+      Seq(4.0,16,42,null,null),
+      Seq(5.0,25,42,null,null))
+    checkAnswer(joinRdd, joinData)
+  }
+
+  test("RIGHT JOIN") {
+    deleteFile()
+    val joinQuery = (pigLoadQuery()
+      + s"b = LOAD '${filepath.format("sporkcross.txt")}' USING PigStorage(',') AS (f1:chararray, f2:int);"
+      + "c = JOIN a BY f1 RIGHT, b BY f2;"
+      + pigStoreQuery(alias = "c"))
+    val joinRdd = pql(joinQuery)
+
+    val joinData = Seq(
+      Seq(null,null,null,"River",0),
+      Seq(1.0,1,42,"Mal",1),
+      Seq(2.0,4,42,"Zoey",2),
+      Seq(3.0,9,42,"Jayne",3))
+    checkAnswer(joinRdd, joinData)
+  }
+
+  test("FULL JOIN") {
+    deleteFile()
+    val joinQuery = (pigLoadQuery()
+      + s"b = LOAD '${filepath.format("sporkcross.txt")}' USING PigStorage(',') AS (f1:chararray, f2:int);"
+      + "c = JOIN a BY f1 FULL, b BY f2;"
+      + pigStoreQuery(alias = "c"))
+    val joinRdd = pql(joinQuery)
+
+    val joinData = Seq(
+      Seq(null,null,null,"River",0),
+      Seq(1.0,1,42,"Mal",1),
+      Seq(2.0,4,42,"Zoey",2),
+      Seq(3.0,9,42,"Jayne",3),
+      Seq(4.0,16,42,null,null),
+      Seq(5.0,25,42,null,null))
+    checkAnswer(joinRdd, joinData)
+  }
+
 
   /**
    * Deletes the destination file, then bookends the query with the given load command

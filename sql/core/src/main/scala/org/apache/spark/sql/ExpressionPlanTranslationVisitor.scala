@@ -10,10 +10,13 @@ import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression,
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.types.StringType
 
+import scala.collection.JavaConversions._
+import org.apache.pig.newplan.logical.relational.LogicalRelationalOperator
+
 /**
  * Walks a Pig LogicalExpressionPlan tree and translates it into an equivalent Catalyst expression plan
  */
-class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan)
+class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan, parent: LogicalPlanTranslationVisitor)
   extends LogicalExpressionVisitor(plan, new DependencyOrderWalker(plan, true))
   with PigTranslationVisitor[PigExpression, SparkExpression] {
 
@@ -30,11 +33,18 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan)
   // TODO: Allow this to handle more general FuncSpec values
   //  (right now we can only handle casts to and from basic types)
   override def visit(pigCast: CastExpression) {
-    val alias = pigCast.getFieldSchema.alias
     val dstType = translateType(pigCast.getFieldSchema.`type`)
+    val pigChild = pigCast.getExpression
 
-    val cast = new Cast(new UnresolvedAttribute(alias), dstType)
-    updateStructures(pigCast, cast)
+    if (pigChild == null) {
+      val alias = pigCast.getFieldSchema.alias
+      val cast = new Cast(new UnresolvedAttribute(alias), dstType)
+      updateStructures(pigCast, cast)
+    }
+    else {
+      val cast = new Cast(getTranslation(pigChild), dstType)
+      updateStructures(pigCast, cast)
+    }
   }
 
   override def visit(pigConst: ConstantExpression) {
@@ -64,12 +74,22 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan)
   }
 
   override def visit(pigProj: ProjectExpression) {
-    val column = pigProj.getColNum
-    val pigSchema = pigProj.getAttachedRelationalOp.getSchema
-    val sparkSchema = translateSchema(pigSchema)
+    if (pigProj.getColAlias != null) {
+      val proj = new UnresolvedAttribute(pigProj.getColAlias)
+      updateStructures(pigProj, proj)
+    }
+    else {
+      val inputNum = pigProj.getInputNum
+      val inputs = pigProj.getAttachedRelationalOp.getPlan.getPredecessors(pigProj.getAttachedRelationalOp)
+      val sparkInput = parent.getTranslation(inputs(inputNum))
+      // This works for PigLoad, but will it work for other things?
+      val sparkSchema = sparkInput.output
 
-    val proj = new BoundReference(column, sparkSchema(column))
-    updateStructures(pigProj, proj)
+      val column = pigProj.getColNum
+
+      val proj = sparkSchema(column)
+      updateStructures(pigProj, proj)
+    }
   }
 
   // Unary Expressions

@@ -11,6 +11,7 @@ import java.util.Properties
 import org.apache.spark.sql.pig.{PigLogicalPlanDumpVisitor, SparkLogicalPlanDumper}
 
 case class DataRow(f1:Double, f2:Int, f3:Int)
+case class DataRow2(f1:String, f2:Int)
 
 class PlanPrinter(pc: PigContext) {
 
@@ -55,7 +56,9 @@ object PlanPrinter {
     val pp: PlanPrinter = new PlanPrinter(new PigContext(ExecType.LOCAL, new Properties))
     val pigQuery: String = (
       "a = LOAD '../spork1.txt' USING PigStorage(',') AS (f1:double, f2:int, f3:int);"
-        + "b = FILTER a BY (double) f2 < 4.0;" + "STORE b INTO '../spork2.txt' USING PigStorage(',');")
+        + "b = LOAD '../sporkcross.txt' USING PigStorage(',') AS (f1:chararray, f2:int);"
+        + "c = JOIN a BY f1 LEFT, b BY f2;"
+        + "STORE c INTO '../spork2.txt' USING PigStorage(',');")
     println("***** Pig Query *****")
     println(pigQuery + "\n")
     println("***** Pig Plan *****")
@@ -66,7 +69,10 @@ object PlanPrinter {
     val data = TestSQLContext.sparkContext.textFile("../spork1.txt").map(_.split(",")).map(
       r => DataRow(r(0).toDouble, r(1).toInt, r(2).toInt))
     data.registerAsTable("spork1")
-    val sqlQuery: String = "SELECT f1, f2, f3 FROM spork1 WHERE f1 < 4.0"
+    val data2 = TestSQLContext.sparkContext.textFile("../sporkcross.txt").map(_.split(",")).map(
+      r => DataRow2(r(0), r(1).toInt))
+    data2.registerAsTable("sporkcross")
+    val sqlQuery: String = "SELECT f1, f2, f3 FROM spork1 LEFT JOIN sporkcross ON spork1.f1=sporkcross.f2"
     println("\n***** SQL Query *****")
     println(sqlQuery +  "\n")
     println("***** SQL Plan *****")

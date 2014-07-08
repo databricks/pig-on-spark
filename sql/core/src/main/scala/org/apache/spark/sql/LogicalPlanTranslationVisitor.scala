@@ -2,21 +2,13 @@ package org.apache.spark.sql
 
 import org.apache.pig.newplan.{OperatorPlan => PigOperatorPlan, Operator => PigOperator, DependencyOrderWalker}
 import org.apache.pig.newplan.logical.expression.{LogicalExpressionPlan => PigExpression}
-import org.apache.pig.newplan.logical.relational._
-
-import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, _}
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan => SparkLogicalPlan, _}
+import org.apache.pig.newplan.logical.relational.{LogicalPlan => PigLogicalPlan, _}
 
 import scala.collection.JavaConversions._
 import org.apache.spark.sql.catalyst.types.IntegerType
-import org.apache.spark.sql.catalyst.plans.logical.Sort
-import org.apache.spark.sql.catalyst.expressions.SortOrder
-import org.apache.spark.sql.catalyst.plans.logical.Filter
-import org.apache.spark.sql.catalyst.plans.logical.PigStore
-import org.apache.spark.sql.catalyst.plans.logical.PigLoad
-import org.apache.spark.sql.catalyst.plans.logical.Distinct
-import org.apache.spark.sql.catalyst.plans.logical.Limit
-import org.apache.spark.sql.catalyst.plans.Inner
+import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, _}
+import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan => SparkLogicalPlan, _}
 
 /**
  * Walks the PigOperatorPlan and builds an equivalent SparkLogicalPlan
@@ -58,6 +50,56 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
     val sparkExpression = translateExpression(pigFilter.getFilterPlan)
     val filter = Filter(condition = sparkExpression, child = sparkChild)
     updateStructures(pigFilter, filter)
+  }
+
+  /**
+   * Pig has an annoyingly broken way of representing what type of join should be performed.
+   * It uses an innerFlags array of booleans to represent which of the outputs should be treated as
+   *  inner/outer sides of the join, but the interpretation of innerFlags[i] is not consistent. If
+   *  all of the entries in innerFlags are true then the join is an inner join, and if all of the
+   *  entries are false then the join is an outer join. This would seem to suggest that
+   *  innerFlags[i] is true iff the ith input should be treated as the inner side of the join.
+   *  However, a left outer join is represented by [true, false] and a right outer join is
+   *  represented by [false, true], which means that in these cases innerFlags[i] means the exact
+   *  opposite of what you would expect it to mean. /rant
+   * This function translates Pig's bizarre design decision into a Catalyst JoinType. It was
+   *  shamelessly copied from Lipstick, Netflix's open-source Pig visualizer
+   *  (https://github.com/Netflix/Lipstick/blob/master/lipstick-console/src/main/java/com/netflix/
+   *           lipstick/adaptors/LOJoinJsonAdaptor.java)
+   */
+  protected def getJoinType(node: LOJoin): JoinType = {
+    val innerFlags = node.getInnerFlags()
+    val sum = innerFlags.count(a => a)
+
+    if (sum == innerFlags.length) {
+      return Inner
+    } else if (sum == 0) {
+      return FullOuter
+    } else if (innerFlags(0)) {
+      return LeftOuter
+    }
+    return RightOuter
+  }
+
+  override def visit(pigJoin: LOJoin) = {
+    val inputs = pigJoin.getInputs(plan.asInstanceOf[PigLogicalPlan]).map(getTranslation)
+    val joinType = getJoinType(pigJoin)
+    val expressions = pigJoin.getExpressionPlanValues.map(translateExpression)
+
+    if (inputs.length > 2) {
+      if (joinType != Inner) {
+        throw new IllegalArgumentException("Outer join with more than 2 inputs")
+      }
+      throw new UnsupportedOperationException("Can't handle joins with more than 2 inputs")
+      /*
+      var tables = inputs
+      val baseJoin = Join(tables.head, tables.tail.head, joinType, None)
+      */
+    }
+
+    val exp = Equals(expressions.head, expressions.tail.head)
+    val join = Join(inputs.head, inputs.tail.head, joinType, Some(exp))
+    updateStructures(pigJoin, join)
   }
 
   override def visit(pigLimit: LOLimit) = {
@@ -124,9 +166,21 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
     updateStructures(pigStore, store)
   }
 
-  protected def translateExpression(pigExpression: PigExpression) : SparkExpression = {
-    val eptv = new ExpressionPlanTranslationVisitor(pigExpression)
+  protected def translateExpression(pigExpression: PigExpression): SparkExpression = {
+    val eptv = new ExpressionPlanTranslationVisitor(pigExpression, this)
     eptv.visit()
     eptv.getRoot()
+  }
+
+  /**
+   * Parses the given schema from Pig types into Catalyst types
+   */
+  protected def translateSchema(pigSchema: LogicalSchema): Seq[AttributeReference] = {
+    val fields = pigSchema.getFields
+    val newSchema = fields.map { case field =>
+      val dataType = translateType(field.`type`)
+      AttributeReference(field.alias, dataType, true)()
+    }
+    newSchema.toSeq
   }
 }

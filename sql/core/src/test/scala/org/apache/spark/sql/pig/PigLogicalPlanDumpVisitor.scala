@@ -44,7 +44,19 @@ class PigLogicalPlanDumpVisitor(plan: OperatorPlan, indent: String = "")
   override def visit(op: LOStore) = { dumpOp(op) }
 
 
-  override def visit(op: LOJoin) = { dumpOp(op) }
+  override def visit(op: LOJoin) = {
+    dumpOp(op)
+    printWithIndent("   Inputs:")
+    op.getInputs(plan.asInstanceOf[LogicalPlan]).map(println)
+    printWithIndent("   InnerFlags: " + op.getInnerFlags.mkString(","))
+    printWithIndent("   Join type: " + op.getJoinType)
+    printWithIndent("   ExpressionPlanValues:")
+    op.getExpressionPlanValues.map{ expPlan =>
+      val child = new PigLogicalExpressionPlanDumpVisitor(expPlan, indent + "   ")
+      child.visit()
+    }
+    println()
+  }
 
 
   override def visit(op: LOForEach) = {
