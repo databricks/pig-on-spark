@@ -82,23 +82,27 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
   }
 
   override def visit(pigJoin: LOJoin) = {
-    val inputs = pigJoin.getInputs(plan.asInstanceOf[PigLogicalPlan]).map(getTranslation)
+    var inputs = pigJoin.getInputs(plan.asInstanceOf[PigLogicalPlan]).map(getTranslation).toSeq
     val joinType = getJoinType(pigJoin)
-    val expressions = pigJoin.getExpressionPlanValues.map(translateExpression)
+    var expressions = pigJoin.getExpressionPlanValues.map(translateExpression).toSeq
+
+    var exp = Equals(expressions.head, expressions.tail.head)
+    var join = Join(inputs.head, inputs.tail.head, joinType, Some(exp))
 
     if (inputs.length > 2) {
       if (joinType != Inner) {
         throw new IllegalArgumentException("Outer join with more than 2 inputs")
       }
-      throw new UnsupportedOperationException("Can't handle joins with more than 2 inputs")
-      /*
-      var tables = inputs
-      val baseJoin = Join(tables.head, tables.tail.head, joinType, None)
-      */
+
+      while (inputs.length >= 3) {
+        // Remove the second element of expressions
+        expressions = expressions.head +: expressions.tail.tail
+        exp = Equals(expressions.head, expressions.tail.head)
+        inputs = join +: inputs.tail.tail
+        join = Join(inputs.head, inputs.tail.head, Inner, Some(exp))
+      }
     }
 
-    val exp = Equals(expressions.head, expressions.tail.head)
-    val join = Join(inputs.head, inputs.tail.head, joinType, Some(exp))
     updateStructures(pigJoin, join)
   }
 

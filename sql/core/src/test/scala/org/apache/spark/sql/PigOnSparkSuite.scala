@@ -221,6 +221,22 @@ class PigOnSparkSuite extends QueryTest {
     checkAnswer(joinRdd, joinData)
   }
 
+  test("INNER JOIN with more than 2 inputs") {
+    deleteFile()
+    val joinQuery = (pigLoadQuery()
+      + s"b = LOAD '${filepath.format("sporkcross.txt")}' USING PigStorage(',') AS (f1:chararray, f2:int);"
+      + pigLoadQuery(alias = "c")
+      + s"d = LOAD '${filepath.format("sporkcross.txt")}' USING PigStorage(',') AS (f1:chararray, f2:int);"
+      + "e = JOIN a BY f1, b BY f2, c BY f1, d BY f2;"
+      + pigStoreQuery(alias = "e"))
+    val joinRdd = pql(joinQuery)
+
+    val joinData = Seq(
+      Seq(1.0,1,42,"Mal",1,1.0,1,42,"Mal",1),
+      Seq(2.0,4,42,"Zoey",2,2.0,4,42,"Zoey",2),
+      Seq(3.0,9,42,"Jayne",3,3.0,9,42,"Jayne",3))
+    checkAnswer(joinRdd, joinData)
+  }
 
   /**
    * Deletes the destination file, then bookends the query with the given load command
