@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/studenttab10k';
+b = foreach a generate $0, $2;
+store b into ':OUTPATH:';

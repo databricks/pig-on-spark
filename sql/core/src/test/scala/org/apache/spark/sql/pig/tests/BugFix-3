@@ -1,0 +1,8 @@
+register :FUNCPATH:/testudf.jar;
+                                define printconf org.apache.pig.test.udf.evalfunc.UdfContextFrontend('dummy');
+                                a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+                                b = limit a 1;
+                                c = foreach b generate printconf(name);
+	                        store c into ':OUTPATH:';
+                                fs -ls;
+                                

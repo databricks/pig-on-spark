@@ -1,0 +1,8 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = filter a by age < 20;
+c = foreach b { 
+    exp1 = age + gpa;
+    exp2 = exp1 + age;
+    generate exp1, exp2;
+    }
+store c into ':OUTPATH:';

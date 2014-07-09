@@ -9,9 +9,12 @@ import TestSQLContext._
 
 import java.util.Properties
 import org.apache.spark.sql.pig.{PigLogicalPlanDumpVisitor, SparkLogicalPlanDumper}
+import org.apache.commons.io.FileUtils
+import java.io.File
 
 case class DataRow(f1:Double, f2:Int, f3:Int)
 case class DataRow2(f1:String, f2:Int)
+case class VoterTab(name:String, age:Int, registration:String, contributions:Double)
 
 class PlanPrinter(pc: PigContext) {
 
@@ -54,11 +57,16 @@ class PlanPrinter(pc: PigContext) {
 object PlanPrinter {
   def main(args: Array[String]) {
     val pp: PlanPrinter = new PlanPrinter(new PigContext(ExecType.LOCAL, new Properties))
-    val pigQuery: String = (
-      "a = LOAD '../spork1.txt' USING PigStorage(',') AS (f1:double, f2:int, f3:int);"
-        + "b = LOAD '../sporkcross.txt' USING PigStorage(',') AS (f1:chararray, f2:int);"
-        + "c = JOIN a BY f1 LEFT, b BY f2;"
-        + "STORE c INTO '../spork2.txt' USING PigStorage(',');")
+
+    val inpath = "/Users/Greg/tmp/singlefile/votertab10k"
+    val outpath = "/Users/Greg/tmp/out"
+    FileUtils.deleteDirectory(new File(outpath))
+    val pigQuery: String =
+      s"""
+        |a = load '$inpath' using PigStorage() as (name:chararray, age:int, registration, contributions:double);
+        |b = filter a by name matches '^fred.*' and (chararray)registration matches '^dem.*';
+        |store b into '$outpath' using PigStorage;
+      """.stripMargin
     println("***** Pig Query *****")
     println(pigQuery + "\n")
     println("***** Pig Plan *****")
@@ -66,19 +74,31 @@ object PlanPrinter {
     println("\n***** Pig Dump *****")
     pp.pigInfoDump(pigQuery)
 
+    val pigRdd = pql(pigQuery)
+    println("***** Pig Result *****")
+    pigRdd.collect().foreach(println)
+
     val data = TestSQLContext.sparkContext.textFile("../spork1.txt").map(_.split(",")).map(
       r => DataRow(r(0).toDouble, r(1).toInt, r(2).toInt))
     data.registerAsTable("spork1")
     val data2 = TestSQLContext.sparkContext.textFile("../sporkcross.txt").map(_.split(",")).map(
       r => DataRow2(r(0), r(1).toInt))
     data2.registerAsTable("sporkcross")
-    val sqlQuery: String = "SELECT f1, f2, f3 FROM spork1 LEFT JOIN sporkcross ON spork1.f1=sporkcross.f2"
+    val votertab10k = TestSQLContext.sparkContext.textFile(inpath).map(_.split("\t")).map(
+      r => VoterTab(r(0), r(1).toInt, r(2), r(3).toDouble))
+    votertab10k.registerAsTable("votertab")
+
+    val sqlQuery: String = "SELECT * FROM votertab WHERE name LIKE 'fred%' AND registration LIKE 'dem%'"
     println("\n***** SQL Query *****")
     println(sqlQuery +  "\n")
     println("***** SQL Plan *****")
     pp.sqlPrintPlan(sqlQuery)
     println("***** SQL Dump *****")
     pp.sparkInfoDump(sqlQuery)
+
+    val sqlRdd = sql(sqlQuery)
+    println("***** SQL Result *****")
+    sqlRdd.collect().foreach(println)
   }
 }
 

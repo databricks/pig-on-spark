@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age: int, gpa);
+c = group a by name;
+d = foreach c generate flatten(group), MAX(a.age) + MIN(a.age);
+store d into ':OUTPATH:';

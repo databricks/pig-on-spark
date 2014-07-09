@@ -1,0 +1,9 @@
+
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = group a by name;
+c = foreach b generate group, AVG(a.age) AS average;
+d = order c by average;
+simple_scalar = limit d 1;
+d = filter a by age > (int) simple_scalar.$1;
+e = foreach d generate name, age;
+store e into ':OUTPATH:';

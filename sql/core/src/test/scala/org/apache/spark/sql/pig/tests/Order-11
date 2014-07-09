@@ -1,0 +1,4 @@
+register :FUNCPATH:/testudf.jar;
+a = load ':INPATH:/singlefile/studenttab10k';
+c = order a by $0, $1 using org.apache.pig.test.udf.orderby.OrdDesc;
+store c into ':OUTPATH:';

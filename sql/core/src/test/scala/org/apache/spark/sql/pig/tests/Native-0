@@ -1,0 +1,6 @@
+
+rmf table_testNativeMRJobSimple_input
+rmf table_testNativeMRJobSimple_output
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age, gpa);
+b = mapreduce ':MAPREDJARS:/hadoop-examples.jar' Store a into 'table_testNativeMRJobSimple_input' Load 'table_testNativeMRJobSimple_output' `wordcount table_testNativeMRJobSimple_input table_testNativeMRJobSimple_output`;
+store b into ':OUTPATH:';

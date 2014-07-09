@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/allscalar10k' as (name:chararray, age:int, gpa:double, instate:boolean);
+b = foreach a generate instate;
+c = order b by instate;
+store c into ':OUTPATH:';

@@ -1,0 +1,9 @@
+ 
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name:chararray, age:int, gpa: double);
+b = group a by name;
+c = foreach b generate flatten(a);
+d = filter c by name != 'fred';
+e = group d by name;
+f = foreach e generate flatten(d);
+g = foreach f generate name, d::a::name as dname, a::name as aname;
+store g into ':OUTPATH:';

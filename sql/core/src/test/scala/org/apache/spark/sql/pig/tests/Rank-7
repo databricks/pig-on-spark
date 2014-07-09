@@ -1,0 +1,12 @@
+
+									SET default_parallel 9;
+									SET pig.splitCombination false;
+									A = LOAD ':INPATH:/singlefile/prerank' using PigStorage(',') as (rownumber:long,rankcabd:long,rankbdaa:long,rankbdca:long,rankaacd:long,rankaaba:long,a:int,b:int,c:int,tail:bytearray);
+									B = foreach A generate a,b,c;
+									C = rank B by a ASC,b ASC DENSE;
+									D = rank B by a ASC,c DESC DENSE;
+									F = join C by $0, D by $0;
+									G = foreach F generate C::rank_B, D::rank_B, C::a, C::b, C::c;
+									H = order G by a ASC, b ASC, c DESC;
+									store H into ':OUTPATH:';
+								

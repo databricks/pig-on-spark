@@ -1,0 +1,11 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = load ':INPATH:/singlefile/studentcolon10k' using PigStorage(':') as (name, age, gpa);
+c = load ':INPATH:/singlefile/votertab10k' as (name, age, registration, contributions);
+d = foreach a generate name, age;
+e = foreach b generate name, age;
+f = foreach c generate name, age;
+g = union d, e;
+h = union f, g;
+i = group h by name;
+i = foreach i generate group, SUM(h.age);
+store i into ':OUTPATH:';

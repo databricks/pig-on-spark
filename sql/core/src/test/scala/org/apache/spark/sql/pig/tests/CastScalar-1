@@ -1,0 +1,7 @@
+ 
+a = load ':INPATH:/singlefile/studenttab10k' as (name: chararray, age: int, gpa: float); 
+b = group a all;
+c = foreach b generate SUM(a.age) as total;
+d = foreach a generate name, age+(double)c.$0 as d_sum;
+e = order d  by name, d_sum;
+store d into ':OUTPATH:';

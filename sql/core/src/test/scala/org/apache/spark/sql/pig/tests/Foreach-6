@@ -1,0 +1,4 @@
+register :FUNCPATH:/testudf.jar;
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = foreach a generate name, flatten(org.apache.pig.test.udf.evalfunc.CreateTupleBag(age, gpa)) as foo;
+store b into ':OUTPATH:';

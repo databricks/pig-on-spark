@@ -1,0 +1,8 @@
+ 
+A = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name:chararray, age:int, gpa: double);
+B = group A all;
+C = foreach B generate COUNT(A) as count;
+D = group A all;
+E = foreach D generate (double)COUNT(A) as count;
+S = sample A E.count/C.count;
+store S into ':OUTPATH:';

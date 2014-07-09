@@ -1,0 +1,24 @@
+
+A  = load ':INPATH:/types/numbers.txt' using PigStorage(':') as (intnum1000: int,id: int,intnum5: int,intnum100: int,intnum: int,longnum: long,floatnum: float,doublenum: double);
+B = limit A 10;
+Gen1 = FOREACH B GENERATE $0, $1, $2 ;
+GroupById = GROUP B BY id;
+
+B1  = foreach B generate TOBAG( intnum1000, id, intnum5); 
+B3 = foreach B generate TOBAG( $0, $1, $2); 
+T1= foreach B generate TOTUPLE( intnum1000, id, intnum5); 
+T2= foreach B generate TOTUPLE( $0, $1, $2); 
+T3 = foreach B generate TOTUPLE( $0, $0, $0); 
+T4= foreach B generate TOBAG($0, $1, $2), TOTUPLE($3, $4, $5), $6, $7;
+T5= foreach B generate $0, $1, TOTUPLE($2, $3, $4), TOBAG($5, $6), $7;
+T6= foreach B generate $0,  TOTUPLE($0, $0, $0), TOBAG($0, $0), $0 AS duplicate;
+describe Gen1;
+describe GroupById;
+describe B1;
+describe B3;
+describe T1;
+describe T2;
+describe T3;
+describe T4;
+describe T5;
+describe T6;

@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/studentnulltab10k';
+split a into a1 if $0 > 'm', a2 if $0 <= 'm'; 
+store a2 into ':OUTPATH:';

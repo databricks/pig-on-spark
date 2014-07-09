@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studentnulltab10k' as (name, age, gpa);
+split a into a1 if age > 50, a2 if age <= 25; 
+b = order a2 by name;
+store b into ':OUTPATH:';

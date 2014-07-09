@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studentctrla10k' using PigStorage('\u0001') as (name, age, gpa);
+store a into ':OUTPATH:.intermediate' using PigStorage('\u0001');
+b = load ':OUTPATH:.intermediate' using PigStorage('\u0001') as (name, age, gpa); 
+store b into ':OUTPATH:'; 

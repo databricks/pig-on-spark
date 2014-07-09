@@ -1,0 +1,8 @@
+ 
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age, gpa);
+b = load ':INPATH:/singlefile/textdoc' using TextLoader() as (sentence);
+c = cogroup a ALL, b ALL;
+d = foreach c generate flatten(a), flatten(b);
+e = foreach d generate name, flatten(TOKENIZE((chararray)sentence)) as sentence;
+f = foreach e generate CONCAT((chararray)name, sentence);
+store f into ':OUTPATH:';

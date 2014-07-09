@@ -1,0 +1,7 @@
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age, gpa);
+store a into ':OUTPATH:.intermediate' using BinStorage();
+b = load ':OUTPATH:.intermediate' using BinStorage() as (name, age, gpa);
+c = load ':INPATH:/singlefile/votertab10k' as (name, age, registration, contributions);
+e = cogroup b by (name, age) inner, c by (name, age) inner;
+f = foreach e generate flatten (b), flatten(c);
+store f into ':OUTPATH:';

@@ -1,0 +1,12 @@
+
+                        A = LOAD ':INPATH:/singlefile/studenttab10k' as (name:chararray, age:int, gpa:double);
+                        B = LOAD ':INPATH:/singlefile/votertab10k' as (name:chararray, age:int, registration, contributions:double);
+                        C = cogroup A by name, B by name;
+                        D = foreach C {
+                            C1 = filter A by gpa > 4;
+                            C2 = filter B by contributions > 500;
+                            C3 = cross C1, C2;
+                            C4 = foreach C3 generate CONCAT(CONCAT((chararray)gpa, '_'), (chararray)contributions);
+                            generate flatten(C4);
+                        }
+                        store D into ':OUTPATH:';

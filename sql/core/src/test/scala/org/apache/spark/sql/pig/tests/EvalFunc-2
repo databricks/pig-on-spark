@@ -1,0 +1,5 @@
+register :FUNCPATH:/testudf.jar;
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = filter a by name lt 'b';
+c = foreach b generate org.apache.pig.test.udf.evalfunc.Swap(name, age);
+store c into ':OUTPATH:' using org.apache.pig.test.udf.storefunc.StringStore();

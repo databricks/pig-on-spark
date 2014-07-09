@@ -1,0 +1,6 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = group a by (name);
+c = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+d = cogroup b by group, c by name;
+e = foreach d generate flatten(group), SUM(c.gpa), COUNT(c.name);
+store e into ':OUTPATH:';

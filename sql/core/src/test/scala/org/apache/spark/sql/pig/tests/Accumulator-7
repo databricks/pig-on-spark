@@ -1,0 +1,7 @@
+a = load ':INPATH:/singlefile/votertab10k' using PigStorage() as (name, age:long, registration, contributions);
+register :FUNCPATH:/testudf.jar;
+b = foreach (group a all) generate org.apache.pig.test.udf.evalfunc.NonAlgNonAccCount(a),
+                                   org.apache.pig.test.udf.evalfunc.IteratingAccumulatorCount(a),
+                                   org.apache.pig.test.udf.evalfunc.IteratingAccumulatorSum(a.age),
+                                   org.apache.pig.test.udf.evalfunc.IteratingAccumulatorIsEmpty(a);
+store b into ':OUTPATH:';

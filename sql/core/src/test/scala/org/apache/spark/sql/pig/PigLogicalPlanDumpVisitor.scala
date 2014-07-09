@@ -35,7 +35,15 @@ class PigLogicalPlanDumpVisitor(plan: OperatorPlan, indent: String = "")
     println()
   }
 
-  override def visit(op: LOLoad) = { dumpOp(op) }
+  override def visit(op: LOLoad) = {
+    dumpOp(op)
+    printWithIndent("   Configuration: " + op.getConfiguration)
+    printWithIndent("   Determined Schema: " + op.getDeterminedSchema)
+    printWithIndent("   Schema: " + op.getSchema)
+    printWithIndent("   Schema File: " + op.getSchemaFile)
+    printWithIndent("   Script Schema: " + op.getScriptSchema)
+    printWithIndent("   Signature: " + op.getSignature)
+  }
 
 
   override def visit(op: LOFilter) = { dumpOp(op) }

@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/studentnulltab10k' as (name, age, gpa);
+b = foreach a generate (long)age, (long)age % 2L, (long)age + 2500000000L, (long)age - 2500000000L, (long)age/2L, (long)age * 250000000L, SIZE((long)age), (float)gpa + 10.1f, (float)gpa - 1.1f , (float)gpa / 1.2f, (float)gpa * 2.6f, SIZE((float)gpa);
+store b into ':OUTPATH:';

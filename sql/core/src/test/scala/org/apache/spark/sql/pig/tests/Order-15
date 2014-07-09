@@ -1,0 +1,5 @@
+register :FUNCPATH:/testudf.jar;
+a = load ':INPATH:/singlefile/studenttab10k';
+b = group a by $0;
+c = foreach b {c1 = order $1 by $1 using org.apache.pig.test.udf.orderby.OrdDesc; generate flatten(c1);};
+store c into ':OUTPATH:';

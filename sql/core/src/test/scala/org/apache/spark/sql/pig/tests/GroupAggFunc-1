@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studenttab10k';
+b = group a by $0;
+c = foreach b generate group, COUNT(a.$1);
+store c into ':OUTPATH:';

@@ -1,0 +1,6 @@
+a = load ':INPATH:/singlefile/allscalar10k' as (name:chararray, age:int, gpa:double, instate:boolean);
+b = load ':INPATH:/singlefile/allscalar10k' as (name:chararray, age:int, gpa:double, instate:boolean);
+c = filter a by age < 20;
+d = filter b by age < 20;
+e = join c by instate, d by instate parallel 5;
+store e into ':OUTPATH:';

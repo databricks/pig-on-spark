@@ -1,0 +1,8 @@
+A = LOAD ':INPATH:/singlefile/votertab10k' AS (name, age, registration, contributions);
+                                -- dropping one column to force columnprune
+                                B = foreach A generate name, age, registration;
+                                -- Next line is the only difference
+                                SPLIT B into C1 if age > 50, C2 otherwise;
+                                D1 = foreach C1 generate age, registration;
+                                STORE D1 INTO ':OUTPATH:.1';
+                                STORE C2 INTO ':OUTPATH:.2';

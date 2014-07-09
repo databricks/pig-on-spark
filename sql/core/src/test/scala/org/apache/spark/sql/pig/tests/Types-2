@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/studentnulltab10k' as (name:chararray, age:int, gpa:double);
+b = foreach a generate age, gpa, age % 25, age + 25, age - 25, age/2, age * 2, SIZE(age), gpa + 10.1, gpa - 1.1 , gpa / 1.2, gpa * 2.5, SIZE(gpa), SIZE(name), CONCAT(name, 'test');
+store b into ':OUTPATH:';

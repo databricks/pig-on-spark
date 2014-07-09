@@ -5,7 +5,7 @@ import org.apache.pig.newplan.logical.expression.{LogicalExpressionPlan => PigEx
 import org.apache.pig.newplan.logical.relational.{LogicalPlan => PigLogicalPlan, _}
 
 import scala.collection.JavaConversions._
-import org.apache.spark.sql.catalyst.types.IntegerType
+import org.apache.spark.sql.catalyst.types.{StringType, BinaryType, NullType, IntegerType}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, _}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan => SparkLogicalPlan, _}
@@ -130,8 +130,11 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
    * commands to create RDDs from files.
    */
   override def visit(pigLoad: LOLoad) = {
-    val schemaMap = translateSchema(pigLoad.getSchema)
     val file = pigLoad.getSchemaFile
+    val schemaMap =
+      // Hack! This one makes me itchy... using non-null things to represent null...
+      if (pigLoad.getSchema == null) Seq(AttributeReference("", StringType)())
+      else translateSchema(pigLoad.getSchema)
     // This is only guaranteed to work for PigLoader, which just splits each line
     //  on a single delimiter. If no delimiter is specified, we assume tab-delimited
     val parserArgs = pigLoad.getFileSpec.getFuncSpec.getCtorArgs()

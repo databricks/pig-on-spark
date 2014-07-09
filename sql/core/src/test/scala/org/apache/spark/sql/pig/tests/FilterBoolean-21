@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/allscalar10k' as (name, age, gpa, instate);
+b = filter a by instate == false;
+store b into ':OUTPATH:' using PigStorage;

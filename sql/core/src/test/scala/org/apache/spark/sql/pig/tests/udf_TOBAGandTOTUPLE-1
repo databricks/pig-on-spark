@@ -1,0 +1,12 @@
+
+A  = load ':INPATH:/types/numbers.txt' using PigStorage(':') as (intnum1000: int,id: int,intnum5: int,intnum100: int,intnum: int,longnum: long,floatnum: float,doublenum: double);
+C   = foreach A generate TOBAG( id, floatnum, doublenum ); 
+D   = foreach A generate TOBAG( id, intnum);
+E   = foreach A generate TOBAG( (float) id,floatnum );
+F   = foreach A generate TOBAG( (long) id,longnum );
+G   = foreach A generate TOBAG( (double) id,doublenum );
+describe C;
+describe D;
+describe E;
+describe F;
+describe G;

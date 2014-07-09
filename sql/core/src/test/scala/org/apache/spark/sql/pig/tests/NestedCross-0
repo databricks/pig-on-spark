@@ -1,0 +1,9 @@
+
+                        A = LOAD ':INPATH:/singlefile/studenttab10k' as (name:chararray, age:int, gpa:double);
+                        B = LOAD ':INPATH:/singlefile/votertab10k' as (name:chararray, age:int, registration, contributions:double);
+                        C = cogroup A by name, B by name;
+                        D = foreach C {
+                            C1 = cross A, B;
+                            generate flatten(C1);
+                        }
+                        store D into ':OUTPATH:';

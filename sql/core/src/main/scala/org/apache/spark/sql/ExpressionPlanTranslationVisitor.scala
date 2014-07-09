@@ -79,16 +79,22 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan, parent: Logi
       updateStructures(pigProj, proj)
     }
     else {
+      val column = pigProj.getColNum
       val inputNum = pigProj.getInputNum
       val inputs = pigProj.getAttachedRelationalOp.getPlan.getPredecessors(pigProj.getAttachedRelationalOp)
       val sparkInput = parent.getTranslation(inputs(inputNum))
       // This works for PigLoad, but will it work for other things?
       val sparkSchema = sparkInput.output
 
-      val column = pigProj.getColNum
-
-      val proj = sparkSchema(column)
-      updateStructures(pigProj, proj)
+      // HACK!HACK!HACK!
+      if (sparkSchema.head.name == "") {
+        val proj = BoundReference(column, AttributeReference("", StringType)())
+        updateStructures(pigProj, proj)
+      }
+      else {
+        val proj = sparkSchema(column)
+        updateStructures(pigProj, proj)
+      }
     }
   }
 

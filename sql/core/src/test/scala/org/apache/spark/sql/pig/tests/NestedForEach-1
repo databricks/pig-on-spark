@@ -1,0 +1,12 @@
+
+                        A = LOAD ':INPATH:/singlefile/studenttab10k' as (name:chararray, age:int, gpa:double);;
+                        B = group A by name;
+                        C = foreach B {
+                            C1 = A.age;
+                            C2 = filter C1 by age>=30;
+                            C3 = foreach C2 generate age+1 as age;
+                            C4 = order C3 by age desc;
+                            generate C4;
+                        }
+                        D = foreach C generate flatten(C4);
+                        store D into ':OUTPATH:';

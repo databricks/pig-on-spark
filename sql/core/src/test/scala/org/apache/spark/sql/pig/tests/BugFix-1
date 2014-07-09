@@ -1,0 +1,5 @@
+A = LOAD ':INPATH:/singlefile/studenttab10k' AS (name, age:double ,gpa:double);
+                                B = foreach A generate age, gpa, gpa*gpa as gpa2;
+                                C = group B all;
+                                D = foreach C generate group, COR(B.age, B.gpa, B.gpa2);
+                                store D into ':OUTPATH:';

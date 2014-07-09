@@ -1,0 +1,9 @@
+
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age, gpa);
+b = group a all;
+c = foreach b generate AVG(a.age) as avg;
+d = load ':INPATH:/singlefile/votertab10k' using PigStorage() as (name, age, registration, contributions);
+e = group d all;
+f = foreach e generate AVG(d.age) as avg;
+y = foreach a generate age/c.avg, age/f.avg;
+store y into ':OUTPATH:';

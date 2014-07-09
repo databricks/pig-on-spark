@@ -1,0 +1,7 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name:chararray, age:int, gpa:double);
+split a into a1 if age > 50, a2 if name < 'm'; 
+b2 = foreach a2 generate name, 1;
+b1 = foreach a1 generate name, 2;
+c = cogroup b2 by name, b1 by name;
+d = foreach c generate flatten(group), COUNT($1), COUNT($2);
+store d into ':OUTPATH:';

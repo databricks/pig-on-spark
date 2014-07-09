@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name:chararray, age:int, gpa:double);
+split a into a1 if age > 50, a2 otherwise;
+store a1 into ':OUTPATH:.1';
+store a2 into ':OUTPATH:.2';

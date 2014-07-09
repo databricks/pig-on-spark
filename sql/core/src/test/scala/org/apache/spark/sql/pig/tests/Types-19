@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/studentnulltab10k' as (name:chararray, age:int, gpa:double);
+b = order a by name desc;
+store b into ':OUTPATH:';

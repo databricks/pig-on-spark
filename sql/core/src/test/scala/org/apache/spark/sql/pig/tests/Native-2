@@ -1,0 +1,6 @@
+
+rmf table_testNativeMRJobSimple_input
+rmf table_testNativeMRJobSimple_output
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age, gpa);
+b = mapreduce ':MAPREDJARS:/hadoop-streaming.jar' Store a into 'table_testNativeMRJobSimple_input' Load 'table_testNativeMRJobSimple_output' as (name:chararray, count: int) `-input table_testNativeMRJobSimple_input -output table_testNativeMRJobSimple_output -mapper cat -reducer wc`;
+store b into ':OUTPATH:';

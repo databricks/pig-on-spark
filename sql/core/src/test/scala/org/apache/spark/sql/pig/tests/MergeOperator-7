@@ -1,0 +1,5 @@
+
+A = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name:chararray, age:int);
+B = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name:chararray, age:chararray);
+C = union onschema A, B;
+store C into ':OUTPATH:';

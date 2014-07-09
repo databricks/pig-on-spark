@@ -1,0 +1,12 @@
+
+A  = load ':INPATH:/types/numbers.txt' using PigStorage(':') as (intnum1000: int,id: int,intnum5: int,intnum100: int,intnum: int,longnum: long,floatnum: float,doublenum: double);
+B = limit A 10;
+tint = foreach B generate  TOTUPLE( TOBAG( $1, $2, $3),TOTUPLE($3, $4, $5) );
+bint = foreach B generate  TOTUPLE( TOBAG( $1, $2, $3),TOBAG($3, $4, $5) );
+binb = foreach B generate  TOBAG( TOBAG( $1, $2, $3),TOBAG($3, $4, $5) );
+tinb = foreach B generate  TOTUPLE( TOBAG( $1, $2, $3),TOBAG($3, $4, $5) );
+store B into  ':OUTPATH:.1';
+store tint into  ':OUTPATH:.2';
+store bint into  ':OUTPATH:.3';
+store binb into  ':OUTPATH:.4';
+store tinb into  ':OUTPATH:.5';

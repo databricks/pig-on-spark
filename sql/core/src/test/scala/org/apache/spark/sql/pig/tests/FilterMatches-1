@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage();
+b = filter a by not $0 matches '^fred.*';
+store b into ':OUTPATH:' using PigStorage;

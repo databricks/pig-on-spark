@@ -1,0 +1,5 @@
+
+register ':SCRIPTHOMEPATH:/python/scriptingudf.py' using jython as myfuncs;
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name:chararray, age, gpa);
+b = foreach a generate myfuncs.byteconcat(name);
+store b into ':OUTPATH:';

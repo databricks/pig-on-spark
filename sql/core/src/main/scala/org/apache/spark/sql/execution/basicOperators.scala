@@ -175,10 +175,21 @@ case class PigLoad(
   @transient val sqc: SQLContext)
   extends LeafNode {
   def execute() = {
-    val castProjection = schemaCaster(output.asInstanceOf[Seq[AttributeReference]])
     val splitLines = sc.textFile(path).map(_.split(delimiter))
 
     val rowRdd = splitLines.map(r => new GenericRow(r.asInstanceOf[Array[Any]]))
+
+    // HACK!HACK!HACK! Way to get around Pig's ability to load things without a schema
+    val schema =
+      if (output.head.name == "") {
+        val len = rowRdd.first().length
+        (1 to len).toSeq.map(i => new AttributeReference(s"c_$i", StringType, nullable = true)())
+      }
+      else {
+        output
+      }
+
+    val castProjection = schemaCaster(schema.asInstanceOf[Seq[AttributeReference]])
 
     // TODO: This is a janky hack. A cleaner public API for parsing files into schemaRDD is on our to-do list
     val leafRdd = ExistingRdd(output, rowRdd.map(castProjection))

@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = foreach a generate gpa;
+c = order b by gpa;
+store c into ':OUTPATH:';

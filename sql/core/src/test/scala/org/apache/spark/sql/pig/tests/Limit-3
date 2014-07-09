@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studentnulltab10k';
+b = distinct a;
+c = limit b 100;
+store c into ':OUTPATH:';

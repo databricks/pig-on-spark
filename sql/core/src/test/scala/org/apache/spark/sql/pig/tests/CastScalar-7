@@ -1,0 +1,9 @@
+
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age, gpa);
+b = load ':INPATH:/singlefile/votertab10k' as (name, age, registration, contributions);
+c = filter a by age < 20;
+d = filter b by age < 20;
+simple_scalar = limit d 1;
+e = join c by name, d by name;
+f= filter e by c::age <(int)simple_scalar.age;
+store f into ':OUTPATH:';

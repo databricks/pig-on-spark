@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age:long, gpa:float);
+b = filter a by  name == 'fred allen' and age == 61 and gpa == 1.42f;
+store b into ':OUTPATH:' using PigStorage;

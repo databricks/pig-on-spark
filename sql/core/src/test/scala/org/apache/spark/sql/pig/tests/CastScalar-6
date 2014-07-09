@@ -1,0 +1,13 @@
+
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = group a by name;
+c = foreach b generate group, AVG(a.age) AS average;
+d = order c by average;
+simple_scalar = limit d 1;
+split a into X1 if age > (int) simple_scalar.$1, X2 if age < 20;
+split a into X3 if age > (int) simple_scalar.$1, X4 if age > 70;
+
+store X1 into ':OUTPATH:.1';
+store X2 into ':OUTPATH:.2';
+store X3 into ':OUTPATH:.3';
+store X4 into ':OUTPATH:.4';

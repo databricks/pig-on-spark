@@ -1,0 +1,5 @@
+ 
+A = load ':INPATH:/singlefile/studenttab10k' as (name: chararray, age: int, gpa: double);
+B = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa, extra1, extra2);
+C = join A by (name, age), B by (name, extra1);
+store C into ':OUTPATH:';

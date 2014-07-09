@@ -1,0 +1,6 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = load ':INPATH:/singlefile/votertab10k' as (name, age, registration, contributions);
+c = filter a by age < 19 and gpa < 1.0;
+d = filter b by age < 19;
+e = cross c, d;
+store e into ':OUTPATH:';

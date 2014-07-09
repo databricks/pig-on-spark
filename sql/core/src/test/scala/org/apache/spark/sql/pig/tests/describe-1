@@ -1,0 +1,4 @@
+ 
+A = load 'sample' as (line:chararray);
+B = foreach A generate flatten(STRSPLIT(line)) as (i0, i1, i2);
+describe B;

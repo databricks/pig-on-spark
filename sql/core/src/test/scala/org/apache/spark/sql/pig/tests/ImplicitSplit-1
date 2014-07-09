@@ -1,0 +1,7 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name:chararray, age:int, gpa:double);
+b = filter a by age > 50;
+c = filter a by gpa > 3.0;
+d = cogroup b by name, c by name;
+e = foreach d generate flatten(b), flatten(c);
+f = filter e by b::age < 75;
+store f into ':OUTPATH:';

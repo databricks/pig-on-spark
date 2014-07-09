@@ -1,0 +1,6 @@
+
+register ':SCRIPTHOMEPATH:/cpython/scriptingudf.py' using streaming_python as myfuncs;
+a = load ':INPATH:/singlefile/studenttab10k' as (name:chararray, age:chararray, gpa:chararray);
+b = foreach a generate CONCAT(CONCAT(age, ' '), gpa) as sentence;
+c = foreach b generate flatten(myfuncs.tokenize(sentence));
+store c into ':OUTPATH:';

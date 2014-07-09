@@ -1,0 +1,7 @@
+a = load ':INPATH:/singlefile/allscalar10k' using PigStorage() as (name:chararray, age:int, gpa:double, instate:boolean);
+                            b = group a by age;
+                            c = foreach b {
+                                d = order a by instate;
+                                generate group, flatten(d);
+                            };
+                            store c into ':OUTPATH:';

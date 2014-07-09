@@ -1,0 +1,4 @@
+%declare cmd `perl -e "print 'studenttab10k'"`
+a = load ':INPATH:/singlefile/$cmd' using PigStorage() as (name, age, gpa);
+b = foreach a generate name;
+store b into ':OUTPATH:';

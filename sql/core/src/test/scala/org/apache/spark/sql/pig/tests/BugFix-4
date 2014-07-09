@@ -1,0 +1,8 @@
+A = LOAD ':INPATH:/singlefile/votertab10k' AS (name, age, registration, contributions);
+                                -- dropping one column to force columnprune
+                                B = foreach A generate age, registration,contributions;
+                                C = order B by contributions;
+                                D = limit C 3;
+                                E = foreach D generate contributions;
+                                STORE C INTO ':OUTPATH:.1';
+                                STORE E INTO ':OUTPATH:.2';

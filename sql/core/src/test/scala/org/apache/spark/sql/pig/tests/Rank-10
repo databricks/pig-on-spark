@@ -1,0 +1,7 @@
+
+									A = LOAD ':INPATH:/singlefile/prerank' using PigStorage(',') as (rownumber:long,rankcabd:long,rankbdaa:long,rankbdca:long,rankaacd:long,rankaaba:long,a:int,b:int,c:int,tail:bytearray);
+									split A into M if rownumber > 15, N if rownumber < 25;
+									C = rank N;
+									D = foreach C generate $0, a, b, c;
+									store D into ':OUTPATH:';
+								

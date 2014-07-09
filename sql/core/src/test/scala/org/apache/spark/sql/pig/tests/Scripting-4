@@ -1,0 +1,6 @@
+
+register ':SCRIPTHOMEPATH:/python/scriptingudf.py' using jython as myfuncs;
+a = load ':INPATH:/singlefile/studentcomplextab10k' using PigStorage() as (m:[], t:(name:chararray, age:int, gpa:double), b:{t:(name:chararray, age:int, gpa:double)});
+b = foreach a generate flatten(myfuncs.complexTypes(m, t, b)) as (mm, mt, mb);
+c = foreach b generate mm#'name', mt.$0, mb.$0;
+store c into ':OUTPATH:';

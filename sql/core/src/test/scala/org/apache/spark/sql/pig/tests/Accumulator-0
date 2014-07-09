@@ -1,0 +1,6 @@
+a = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name, age:int, gpa);
+b = load ':INPATH:/singlefile/votertab10k' as (name, age, registration, contributions);
+e = cogroup a by name, b by name parallel 8;
+f = foreach e generate group,  SUM(a.age) as s;
+g = filter f by s>0;
+store g into ':OUTPATH:';

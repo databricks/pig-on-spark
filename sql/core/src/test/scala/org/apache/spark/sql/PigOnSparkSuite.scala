@@ -57,7 +57,35 @@ class PigOnSparkSuite extends QueryTest {
     val refAnswer = sql(sqlSelectQuery.format("b"))
     val testAnswer = sql(sqlSelectQuery.format("c"))
 
-    checkAnswer(testAnswer, refAnswer.collect.toSeq)
+    checkAnswer(testAnswer, refAnswer.collect().toSeq)
+    checkAnswer(slRdd, lRdd.collect().toSeq)
+
+    deleteFile("spork2.txt")
+    deleteFile("spork3.txt")
+    val comboQuery =
+      s"""
+        |${pigLoadStoreQuery("b", "spork1.txt", "spork2.txt")}
+        |${pigLoadStoreQuery("c", "spork2.txt", "spork3.txt")}
+      """.stripMargin
+    val comboRdd = pql(comboQuery)
+    checkAnswer(comboRdd, refAnswer)
+  }
+
+  test("LOAD and STORE with no schema") {
+    deleteFile()
+    val noSchemaQuery =
+      s"""
+         |a = LOAD '${filepath.format(defaultSrcFile)}' USING PigStorage(',');
+         |b = FILTER a BY $$1 > 3;
+         |${pigStoreQuery()}
+       """.stripMargin
+    val noSchemaRdd = pql(noSchemaQuery)
+    checkAnswer(noSchemaRdd,
+      Seq(
+        Seq("2.0", "4", "42"),
+        Seq("3.0", "9", "42"),
+        Seq("4.0", "16", "42"),
+        Seq("5.0", "25", "42")))
   }
 
   test("FILTER basic comparisons") {

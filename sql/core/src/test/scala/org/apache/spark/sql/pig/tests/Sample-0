@@ -1,0 +1,4 @@
+ 
+A = load ':INPATH:/singlefile/studenttab10k' using PigStorage() as (name:chararray, age:int, gpa: double);
+S = sample A 2-1-1;
+store S into ':OUTPATH:';

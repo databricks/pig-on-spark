@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studenttab10k';
+b = foreach a generate $1;
+c = order b by $0;
+store c into ':OUTPATH:';

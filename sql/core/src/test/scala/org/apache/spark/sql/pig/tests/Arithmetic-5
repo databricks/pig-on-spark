@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+c = foreach a generate (double)age * 10.1, gpa * 2.752342;
+store c into ':OUTPATH:';

@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studenttab10k';
+b = foreach a generate $1;
+c = distinct b;
+store c into ':OUTPATH:';

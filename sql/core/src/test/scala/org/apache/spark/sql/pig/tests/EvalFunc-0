@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = filter a by name lt 'b';
+c = foreach b generate ARITY(name, age, gpa);
+store c into ':OUTPATH:';

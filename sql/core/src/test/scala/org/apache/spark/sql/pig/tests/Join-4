@@ -1,0 +1,5 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name:chararray,age:int, gpa:double);
+another = load ':INPATH:/singlefile/studenttab10k';
+c = foreach another generate $0, $1+ 10, $2 + 10.0;
+d = join a by $0, c by $0;
+store d into ':OUTPATH:';

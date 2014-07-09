@@ -1,0 +1,11 @@
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = filter a by age < 20;
+c = group b by age;
+d = foreach c { 
+    cf = filter b by gpa < 3.0; 
+    cp = cf.gpa; 
+	cd = distinct cp;
+    co = order cd by $0; 
+    generate group, flatten(co);
+    }
+store d into ':OUTPATH:';

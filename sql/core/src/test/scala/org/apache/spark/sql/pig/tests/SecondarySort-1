@@ -1,0 +1,8 @@
+register :FUNCPATH:/testudf.jar;
+                            a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+                            b = group a by age parallel 10;
+                            c = foreach b {
+                                d = order a by name desc;
+                                generate group, org.apache.pig.test.udf.evalfunc.AllFirstLetter(d);
+                            };
+                            store c into ':OUTPATH:';

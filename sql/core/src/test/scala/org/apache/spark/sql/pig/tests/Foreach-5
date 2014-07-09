@@ -1,0 +1,4 @@
+register :FUNCPATH:/testudf.jar;
+a = load ':INPATH:/singlefile/studenttab10k' as (name, age, gpa);
+b = foreach a generate flatten(name) as n, flatten(org.apache.pig.test.udf.evalfunc.CreateMap((chararray)name, gpa)) as m;
+store b into ':OUTPATH:' using org.apache.pig.test.udf.storefunc.StringStore();

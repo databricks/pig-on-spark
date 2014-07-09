@@ -1,0 +1,5 @@
+a = load ':INPATH:/singlefile/studentnulltab10k';
+b = order a by $0, $1;
+c = filter b by $0 > 'a'; -- break the sort/limit optimization
+d = limit c 100;
+store d into ':OUTPATH:';

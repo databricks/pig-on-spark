@@ -1,0 +1,4 @@
+a = load ':INPATH:/singlefile/studentnulltab10k' as (name:chararray, age:int, gpa:double);
+b = foreach a generate (int)((int)gpa/((int)gpa - 1)) as norm_gpa:int;
+c = foreach b generate (norm_gpa is not null? norm_gpa: 0);
+store c into ':OUTPATH:';

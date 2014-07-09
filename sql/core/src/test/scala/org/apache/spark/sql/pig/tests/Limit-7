@@ -1,0 +1,9 @@
+A = load ':INPATH:/singlefile/studenttab10k' as (name: chararray, age: int, gpa: float);
+B = group A by name;
+C = foreach B {
+	C1 = filter A by age < 40;
+	C2 = limit C1 10;
+	generate group, COUNT(C2);
+}
+D = filter C by $1 > 0;
+store D into ':OUTPATH:';

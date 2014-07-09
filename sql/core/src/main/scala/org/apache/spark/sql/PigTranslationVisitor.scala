@@ -36,7 +36,9 @@ trait PigTranslationVisitor[A <: PigOperator, B <: SparkTreeNode[B]] {
       case PigDataType.FLOAT => FloatType
       case PigDataType.DOUBLE => DoubleType
       case PigDataType.DATETIME => TimestampType
-      case PigDataType.BYTEARRAY => BinaryType // Is this legit?
+      // ByteArray is Pig's default and can be cast to anything, so we want it to translate to
+      // Catalyst's StringType, which can also be cast to anything
+      case PigDataType.BYTEARRAY => StringType
       case PigDataType.CHARARRAY => StringType // Is this legit?
       case PigDataType.BIGINTEGER => DecimalType
       case PigDataType.BIGDECIMAL => DecimalType

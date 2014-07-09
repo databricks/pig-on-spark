@@ -1,0 +1,3 @@
+a = load ':INPATH:/singlefile/studenttab[13]0[km]' as (name, age, gpa);
+b = filter a by name == 'nick miller';
+store b into ':OUTPATH:';
