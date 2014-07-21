@@ -154,7 +154,7 @@ abstract class PigComparisonTest
       case _ => plan.children.iterator.exists(isSorted)
     }
 
-    val orderedAnswer = answer.sorted //if (isSorted(logical)) answer else answer.sorted
+    val orderedAnswer = if (isSorted(logical)) answer else answer.sorted
     orderedAnswer.map(cleanPaths)
   }
 
@@ -252,31 +252,6 @@ abstract class PigComparisonTest
               println("***** /STDERR *****")
             }
 
-            /*
-            val proc = Runtime.getRuntime.exec(cmd)
-            proc.waitFor()
-
-            println("***** STDOUT *****")
-            val br = new BufferedReader(new InputStreamReader(proc.getInputStream))
-            var line = br.readLine()
-            while (line != null) {
-              println(line)
-              line = br.readLine()
-            }
-            println("***** /STDOUT ***")
-
-
-            if (proc.exitValue() != 0) {
-              println("***** STDERR *****")
-              val br = new BufferedReader(new InputStreamReader(proc.getErrorStream))
-              var line = br.readLine()
-              while (line != null) {
-                println(line)
-                line = br.readLine()
-              }
-              println("***** /STDERR *****")
-            }
-            */
             val answer = TestSQLContext.sparkContext.textFile(cacheFile.getAbsolutePath)
             answer.collect()
           } catch {
@@ -344,13 +319,13 @@ abstract class PigComparisonTest
         val outpath = outdir + "/" + pigCacheFile.getName
         val params = HashMap("INPATH" -> indir, "OUTPATH" -> outpath)
         val query = substituteParameters(rawQuery, params)
-        //val pigQuery = new PigQueryExecution(query)
+        val pigQuery = new PigQueryExecution(query)
 
         // Check that the results match unless its an EXPLAIN query.
         // We need to delete the output directory before we prepare the logical plan because the
         // Pig parser will die otherwise
         FileUtils.deleteDirectory(new File(outpath))
-        val preparedPig = prepareAnswer(null, pigResult)//pigQuery.logical, pigResult)
+        val preparedPig = prepareAnswer(pigQuery.logical, pigResult)
 
         val testResult = {
           if (useSpork) {
@@ -358,12 +333,12 @@ abstract class PigComparisonTest
             val sporkCacheFile = new File(sporkCache, cachedAnswerName)
             val sporkOptions = Seq(("HADOOP_HOME", sporkHadoop), ("PIG_HOME", sporkHome))
             val sporkResult = getCachedResult(testCaseName, rawQuery, sporkCacheFile, sporkCmd, sporkOptions)
-            prepareAnswer(null, sporkResult)//pigQuery.logical, sporkResult)
+            prepareAnswer(pigQuery.logical, sporkResult)
           }
           else {
             // Run w/ catalyst
             try {
-              prepareAnswer(null, null)//pigQuery.logical, pigQuery.stringResult())
+              prepareAnswer(pigQuery.logical, pigQuery.stringResult())
             } catch {
               case e: Throwable =>
                 val errorMessage =

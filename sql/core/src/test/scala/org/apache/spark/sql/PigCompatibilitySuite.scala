@@ -212,104 +212,6 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "UdfDistributedCache-0",
     "Union-2",
 
-
-
-
-    "Checkin-0",
-    "Cross-0",
-    "Cross-1",
-    "Cross-3",
-
-    "FilterBoolean-0",
-    "FilterBoolean-1",
-    "FilterBoolean-10",
-    "FilterBoolean-11",
-    "FilterBoolean-12",
-    "FilterBoolean-13",
-    "FilterBoolean-14",
-    "FilterBoolean-15",
-    "FilterBoolean-16",
-    "FilterBoolean-17",
-    "FilterBoolean-18",
-    "FilterBoolean-19",
-    "FilterBoolean-2",
-    "FilterBoolean-20",
-    "FilterBoolean-21",
-    "FilterBoolean-22",
-    "FilterBoolean-23",
-    "FilterBoolean-24",
-    "FilterBoolean-25",
-    "FilterBoolean-26",
-    "FilterBoolean-3",
-    "FilterBoolean-4",
-    "FilterBoolean-5",
-    "FilterBoolean-6",
-    "FilterBoolean-7",
-    "FilterBoolean-8",
-    "FilterBoolean-9",
-    "FilterEq-0",
-    "FilterEq-1",
-    "FilterEq-10",
-    "FilterEq-11",
-    "FilterEq-2",
-    "FilterEq-3",
-    "FilterEq-4",
-    "FilterEq-6",
-    "FilterEq-7",
-
-    "Glob-0",
-    "Glob-1",
-    "Glob-2",
-    "Glob-3",
-    "Glob-4",
-    "Glob-5",
-    "Glob-6",
-
-    "Limit-3",
-    "LoaderDefaultDir-0",
-    "LoaderPigStorageArg-0",
-    "LoaderPigStorageArg-1",
-    "MissingColumns-2",
-    "Realias-0",
-    "SkewedJoin-4",
-    "SkewedJoin-7",
-    "SkewedJoin-8",
-    "SkewedJoin-9",
-
-    "Types-13",
-    "Types-14",
-    "Types-15",
-    "Types-16",
-    "Types-18",
-    "Types-19",
-    "Types-20",
-    "Types-21",
-    "Types-22",
-    "Types-23",
-    "Types-24",
-    "Types-25",
-    "Types-26",
-    "Types-27",
-    "Types-28",
-    "Types-29",
-    "Types-4",
-    "Unicode-0",
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     // cogroup
     "Accumulator-0",
     "CoGroup-0",
@@ -337,8 +239,8 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "describe-0",
 
     // foreach
-    //"Accumulator-1",
-    //"Accumulator-2",
+    "Accumulator-1",
+    "Accumulator-2",
     "Accumulator-3",
     "Aliases-1",
     "Arithmetic-0",
@@ -485,17 +387,6 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "Bzip-1",
     "LoaderPigStorageArg-2",
 
-    // These tests involve regexes
-    // Pig uses Java's regex notation, which doesn't interoperate with SQL's
-    "FilterMatches-0",
-    "FilterMatches-2",
-    "FilterMatches-3",
-    "FilterMatches-4",
-    "FilterMatches-5",
-    "FilterMatches-6",
-    "FilterMatches-7",
-    "FilterMatches-8",
-
     // allscalar10k
     "FilterBoolean-17",
     "FilterBoolean-18",
@@ -515,6 +406,7 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "FilterBoolean-14",
     "FilterBoolean-15",
     "FilterBoolean-16",
+    "FilterMatches-8",
     "Join-10",
     "Join-8",
     "Join-9",
@@ -587,10 +479,91 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
    * blacklist are implicitly marked as ignored.
    */
   override def whiteList = Seq(
-    "Accumulator-1",
-    "Accumulator-2"
-    /*
+    "Checkin-0",
+    "Cross-0",
+    "Cross-1",
+    "Cross-3",
 
-    */
+    "FilterBoolean-0",
+    "FilterBoolean-1",
+    "FilterBoolean-10",
+    "FilterBoolean-11",
+    "FilterBoolean-12",
+    "FilterBoolean-13",
+    "FilterBoolean-14",
+    "FilterBoolean-15",
+    "FilterBoolean-16",
+    "FilterBoolean-17",
+    "FilterBoolean-18",
+    "FilterBoolean-19",
+    "FilterBoolean-2",
+    "FilterBoolean-20",
+    "FilterBoolean-21",
+    "FilterBoolean-22",
+    "FilterBoolean-23",
+    "FilterBoolean-24",
+    "FilterBoolean-25",
+    "FilterBoolean-26",
+    "FilterBoolean-3",
+    "FilterBoolean-4",
+    "FilterBoolean-5",
+    "FilterBoolean-6",
+    "FilterBoolean-7",
+    "FilterBoolean-8",
+    "FilterBoolean-9",
+    "FilterEq-0",
+    "FilterEq-1",
+    "FilterEq-10",
+    "FilterEq-11",
+    "FilterEq-2",
+    "FilterEq-3",
+    "FilterEq-4",
+    "FilterEq-6",
+    "FilterEq-7",
+    "FilterMatches-0",
+    "FilterMatches-2",
+    "FilterMatches-3",
+    "FilterMatches-4",
+    "FilterMatches-5",
+    "FilterMatches-6",
+    "FilterMatches-7",
+
+    "Glob-0",
+    "Glob-1",
+    "Glob-2",
+    "Glob-3",
+    "Glob-4",
+    "Glob-5",
+    "Glob-6",
+
+    "Limit-3",
+    "LoaderDefaultDir-0",
+    "LoaderPigStorageArg-0",
+    "LoaderPigStorageArg-1",
+    "MissingColumns-2",
+    "Realias-0",
+    "SkewedJoin-4",
+    "SkewedJoin-7",
+    "SkewedJoin-8",
+    "SkewedJoin-9",
+
+    "Types-13",
+    "Types-14",
+    "Types-15",
+    "Types-16",
+    "Types-18",
+    "Types-19",
+    "Types-20",
+    "Types-21",
+    "Types-22",
+    "Types-23",
+    "Types-24",
+    "Types-25",
+    "Types-26",
+    "Types-27",
+    "Types-28",
+    "Types-29",
+    "Types-4",
+    "Unicode-0"
   )
 }

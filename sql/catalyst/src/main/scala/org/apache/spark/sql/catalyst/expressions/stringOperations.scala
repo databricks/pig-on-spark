@@ -129,12 +129,26 @@ case class Like(left: Expression, right: Expression)
   override def matches(regex: Pattern, str: String): Boolean = regex.matcher(str).matches()
 }
 
+/**
+ * Is satisfied if the expression matches any substring of the input (Hive)
+ */
 case class RLike(left: Expression, right: Expression)
   extends BinaryExpression with StringRegexExpression {
 
   def symbol = "RLIKE"
   override def escape(v: String): String = v
   override def matches(regex: Pattern, str: String): Boolean = regex.matcher(str).find(0)
+}
+
+/**
+ * Is satisfied only if the expression matches the whole input (Pig)
+ */
+case class RLikeExact(left: Expression, right: Expression)
+  extends BinaryExpression with StringRegexExpression {
+
+  def symbol = "RLIKE_EXACT"
+  override def escape(v: String): String = v
+  override def matches(regex: Pattern, str: String): Boolean = regex.matcher(str).matches()
 }
 
 /**

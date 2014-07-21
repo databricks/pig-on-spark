@@ -147,7 +147,7 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan, parent: Logi
       case _: ModExpression => Remainder
       case _: MultiplyExpression => Multiply
       case _: OrExpression => Or
-      case _: RegexExpression => Like
+      case _: RegexExpression => RLikeExact
       case _: SubtractExpression => Subtract
     }
 
