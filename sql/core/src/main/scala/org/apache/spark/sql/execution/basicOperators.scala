@@ -26,10 +26,7 @@ import org.apache.spark.sql.catalyst.ScalaReflection
 import org.apache.spark.sql.catalyst.errors._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.{OrderedDistribution, UnspecifiedDistribution}
-import org.apache.spark.sql.catalyst.types.StringType
 import org.apache.spark.util.MutablePair
-
-import org.apache.spark.sql.{SQLContext, SchemaRDD}
 
 /**
  * :: DeveloperApi ::
@@ -159,57 +156,6 @@ case class Sort(
   }
 
   override def output = child.output
-}
-
-/**
- * PIG
- * Loads the file at the given path, splitting on the given delimiter
- * Stores it into a schemaRDD with the schema given by output and registers it as a table with the given alias
- */
-case class PigLoad(
-    path: String,
-    delimiter: String,
-    alias: String,
-    output: Seq[Attribute])(
-  @transient val sc: SparkContext,
-  @transient val sqc: SQLContext)
-  extends LeafNode {
-  def execute() = {
-    val splitLines = sc.textFile(path).map(_.split(delimiter))
-
-    val rowRdd = splitLines.map(r => new GenericRow(r.asInstanceOf[Array[Any]]))
-
-    // HACK!HACK!HACK! Way to get around Pig's ability to load things without a schema
-    val schema =
-      if (output.head.name == "") {
-        val len = rowRdd.first().length
-        (1 to len).toSeq.map(i => new AttributeReference(s"c_$i", StringType, nullable = true)())
-      }
-      else {
-        output
-      }
-
-    val castProjection = schemaCaster(schema.asInstanceOf[Seq[AttributeReference]])
-
-    // TODO: This is a janky hack. A cleaner public API for parsing files into schemaRDD is on our to-do list
-    val leafRdd = ExistingRdd(output, rowRdd.map(castProjection))
-
-    val schemaRDD = new SchemaRDD(sqc, SparkLogicalPlan(leafRdd))
-
-    sqc.registerRDDAsTable(schemaRDD, alias)
-    schemaRDD
-  }
-
-  /**
-   * Generates a projections that will cast an all-string row into a row
-   *  with the types in schema
-   */
-  protected def schemaCaster(schema: Seq[AttributeReference]): MutableProjection = {
-    val startSchema = (1 to schema.length).toSeq.map(
-      i => new AttributeReference(s"c_$i", StringType, nullable = true)())
-    val casts = schema.zipWithIndex.map{case (ar, i) => Cast(startSchema(i), ar.dataType)}
-    new MutableProjection(casts, startSchema)
-  }
 }
 
 /**

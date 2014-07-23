@@ -167,11 +167,13 @@ abstract class PigComparisonTest
 
   protected class PigQueryExecution(pql: String) {
     lazy val logical = TestSQLContext.pigParser(pql)
+    lazy val result: Seq[Seq[Any]] = TestSQLContext.pql(pql).collect().toSeq
     override def toString = pql
     def stringResult(): Seq[String] = {
-      val result: Seq[Seq[Any]] = TestSQLContext.pql(pql).collect().toSeq
-      // Reformat to match hive tab delimited output.
-      val asString = result.map(_.mkString("\t")).toSeq
+      // Pig stores nulls as "" rather than "null"
+      def cleanNulls(seq: Seq[Any]): Seq[Any] = { seq.map(e => if (e == null) "" else e ) }
+      // Reformat to have consistent tab delimited output.
+      val asString = result.map(cleanNulls).map(_.mkString("\t")).toSeq
       asString
     }
   }
@@ -376,6 +378,7 @@ abstract class PigComparisonTest
               """.stripMargin
 
             stringToFile(new File(wrongDirectory, testCaseName), errorMessage + rawTestCase)
+
           fail(errorMessage)
         }
 

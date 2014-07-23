@@ -131,10 +131,8 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
    */
   override def visit(pigLoad: LOLoad) = {
     val file = pigLoad.getSchemaFile
-    val schemaMap =
-      // Hack! This one makes me itchy... using non-null things to represent null...
-      if (pigLoad.getSchema == null) Seq(AttributeReference("", StringType)())
-      else translateSchema(pigLoad.getSchema)
+    val schemaMap = translateSchema(pigLoad.getSchema)
+
     // This is only guaranteed to work for PigLoader, which just splits each line
     //  on a single delimiter. If no delimiter is specified, we assume tab-delimited
     val parserArgs = pigLoad.getFileSpec.getFuncSpec.getCtorArgs()
