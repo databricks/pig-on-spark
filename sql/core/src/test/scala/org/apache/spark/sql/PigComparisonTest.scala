@@ -233,7 +233,6 @@ abstract class PigComparisonTest
             // Kind of a hack. Technically we should be able to call
             // val stats = Pig.compile(query).bind().runSingle()
             // but that was giving weird errors.
-            val cmd = s"$exe -x local -e".split(" ") :+ query
             val cmdstr = s"$exe -x local -e $query"
 
             logger.warn(s"Running $cmdstr")
@@ -374,6 +373,7 @@ abstract class PigComparisonTest
             s"""
               |Results do not match for $testCaseName:
               |$query\n
+              |${pigQuery.logical}\n
               |$resultComparison
               """.stripMargin
 

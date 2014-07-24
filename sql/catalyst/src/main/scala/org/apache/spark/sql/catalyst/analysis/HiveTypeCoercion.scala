@@ -243,9 +243,14 @@ trait HiveTypeCoercion {
       // Skip nodes who's children have not been resolved yet.
       case e if !e.childrenResolved => e
 
-      case Cast(e, BooleanType) => Not(Equals(e, Literal(0)))
-      case Cast(e, dataType) if e.dataType == BooleanType =>
+      // Pig ByteArrays have different casting rules for booleans
+      case Cast(e, BooleanType) if e.dataType != ByteArrayType => {
+        Not(Equals(e, Literal(0)))
+      }
+
+      case Cast(e, dataType) if e.dataType == BooleanType => {
         Cast(If(e, Literal(1), Literal(0)), dataType)
+      }
     }
   }
 

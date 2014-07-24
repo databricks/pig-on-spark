@@ -52,6 +52,25 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "Types-26",
     "Types-27",
 
+    // These load without a schema, which we've just decided not to handle
+    "Distinct-3",
+    "Realias-0",
+    "Unicode-0",
+    "Order-3",
+    "Limit-3",
+
+    // These tests load from a file that is created by a store in the same query.
+    // ie. a = LOAD filea; STORE a INTO fileb; b = LOAD fileb; STORE b INTO filec;
+    // We don't currently support this and I don't see why you would ever want to use this when you
+    // could just as easily split it up into 2 queries.
+    "Bzip-0",
+    "Bzip-1",
+    "LoaderPigStorageArg-2",
+
+    // Pig can't parse these because they try to cast a bytearray to a boolean
+    "FilterBoolean-17",
+    "FilterBoolean-18",
+
     // These all have a $ substitution other than INPATH or OUTPATH, which our test harness can't
     // handle yet. Generally speaking, it's a UDF.
     "Accumulator-4",
@@ -392,42 +411,13 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "Union-8",
     "Union-9",
 
-    // These tests load from a file that is created by a store in the same query.
-    // ie. a = LOAD filea; STORE a INTO fileb; b = LOAD fileb; STORE b INTO filec;
-    // We don't currently support this and I don't see why you would ever want to use this when you
-    // could just as easily split it up into 2 queries.
-    "Bzip-0",
-    "Bzip-1",
-    "LoaderPigStorageArg-2",
-
-    // allscalar10k
-    "FilterBoolean-17",
-    "FilterBoolean-18",
-    "FilterBoolean-19",
-    "FilterBoolean-20",
-    "FilterBoolean-21",
-    "FilterBoolean-22",
-    "FilterBoolean-23",
-    "FilterBoolean-24",
-    "FilterBoolean-25",
-    "FilterBoolean-26",
-    "Join-12",
-    "JsonLoaderStorage-2",
-
-
     // set
     "Cross-2",
 
-    // This is a strange error. We should be able to handle everything here.
+    // LOSplit and LOSplitOutput
     "CastScalar-7",
 
-    // These load without a schema, which we've just decided not to handle
-    "Distinct-3",
-    "Realias-0",
-    "Unicode-0",
-
-
-  // Seem to require data we don't have
+    // Seem to require data we don't have
     "Glob-7",
     "Glob-8",
 
@@ -435,7 +425,6 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "Join-0",
     "Join-10",
     "Join-11",
-    "Join-12",
     "Join-2",
     "Join-5",
     "Join-6",
@@ -449,10 +438,6 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "JsonLoaderStorage-2",
     "MergeJoin-8",
 
-    // Scary-looking internal Catalyst error
-    "MissingColumns-0",
-    "Order-3",
-
     // sample
     "Sample-0",
 
@@ -461,7 +446,10 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "SkewedJoin-1",
     "SkewedJoin-3",
     "SkewedJoin-6",
-    "Limit-3"
+    "Join-12",
+
+    // References a column that does not exist, causing an ArrayIndexOutOfBoundsException
+    "MissingColumns-0"
   )
 
   /**
@@ -483,8 +471,6 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "FilterBoolean-14",
     "FilterBoolean-15",
     "FilterBoolean-16",
-    "FilterBoolean-17",
-    "FilterBoolean-18",
     "FilterBoolean-19",
     "FilterBoolean-2",
     "FilterBoolean-20",
@@ -494,6 +480,8 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "FilterBoolean-24",
     "FilterBoolean-25",
     "FilterBoolean-26",
+    "FilterBoolean-27",
+    "FilterBoolean-28",
     "FilterBoolean-3",
     "FilterBoolean-4",
     "FilterBoolean-5",
@@ -542,6 +530,11 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "Types-16",
     "Types-28",
     "Types-29",
-    "Types-4"
+    "Types-4",
+    "Types-40",
+    "Types-41",
+    "Types-42"
   )
 }
+
+

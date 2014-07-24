@@ -44,6 +44,14 @@ case object StringType extends NativeType {
   @transient lazy val tag = typeTag[JvmType]
   val ordering = implicitly[Ordering[JvmType]]
 }
+
+// Used for Pig bytearrays. Basically just a StringType with different casting rules.
+case object ByteArrayType extends NativeType {
+  type JvmType = String
+  @transient lazy val tag = typeTag[JvmType]
+  val ordering = implicitly[Ordering[JvmType]]
+}
+
 case object BinaryType extends DataType {
   type JvmType = Array[Byte]
 }

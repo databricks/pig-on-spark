@@ -22,7 +22,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SchemaRDD, SQLContext, Row}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.catalyst.types.StringType
+import org.apache.spark.sql.catalyst.types.ByteArrayType
 
 trait Command {
   /**
@@ -191,7 +191,7 @@ case class PigLoadCommand(
    */
   protected def schemaCaster(schema: Seq[Attribute]): MutableProjection = {
     val startSchema = (1 to schema.length).toSeq.map(
-      i => new AttributeReference(s"c_$i", StringType, nullable = true)())
+      i => new AttributeReference(s"c_$i", ByteArrayType, nullable = true)())
     val casts = schema.zipWithIndex.map{case (ar, i) => Cast(startSchema(i), ar.dataType)}
     new MutableProjection(casts, startSchema)
   }
