@@ -1,10 +1,11 @@
 package org.apache.spark.sql
 
+import scala.collection.JavaConversions._
+
 import org.apache.pig.newplan.{OperatorPlan => PigOperatorPlan, Operator => PigOperator, DependencyOrderWalker}
 import org.apache.pig.newplan.logical.expression.{LogicalExpressionPlan => PigExpression}
 import org.apache.pig.newplan.logical.relational.{LogicalPlan => PigLogicalPlan, _}
 
-import scala.collection.JavaConversions._
 import org.apache.spark.sql.catalyst.types.{StringType, BinaryType, NullType, IntegerType}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, _}
@@ -81,13 +82,50 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
     return RightOuter
   }
 
+  /**
+   * Translates the Pig expressions in lefts and rights to Catalyst expresssions, then creates a
+   *  list of equality expression specifying that lefts[i] = rights[i] for all i
+   */
+  protected def getEqualExprs(lefts: Seq[PigExpression], rights: Seq[PigExpression]) = {
+    val mixed = lefts.zip(rights)
+    mixed.map { case (l, r) =>
+      val left = translateExpression(l)
+      val right = translateExpression(r)
+      Equals(left, right)
+    }
+  }
+
   override def visit(pigJoin: LOJoin) = {
+    // Creates an expression that is true iff all elements of exprs are true
+    def multiAnd(exprs: Seq[SparkExpression]) = { exprs.reduce(And) }
+
     var inputs = pigJoin.getInputs(plan.asInstanceOf[PigLogicalPlan]).map(getTranslation).toSeq
     val joinType = getJoinType(pigJoin)
-    var expressions = pigJoin.getExpressionPlanValues.map(translateExpression).toSeq
+    val expressionPlans = pigJoin.getExpressionPlans
+    val inputNums = expressionPlans.keySet().toSeq
 
-    var exp = Equals(expressions.head, expressions.tail.head)
-    var join = Join(inputs.head, inputs.tail.head, joinType, Some(exp))
+    val firstExprs = expressionPlans.get(inputNums.head).toSeq
+    val eqSeqs = inputNums.tail.map { i =>
+      val rights = expressionPlans.get(i).toSeq
+      getEqualExprs(firstExprs, rights)
+    }
+
+    var ands = eqSeqs.map(multiAnd)
+    /*
+    //var expressions = pigJoin.getExpressionPlanValues.map(translateExpression).toSeq
+    println("contents of getExpressionPlans:")
+    pigJoin.getExpressionPlans.keySet().map { k: Integer =>
+      val p = pigJoin.getExpressionPlans.get(k)
+      println(s"k is $k, p is $p")
+    }
+    println("untranslated expressions: ")
+    pigJoin.getExpressionPlanValues.foreach(println)
+    println("translated expressions: ")
+    expressions.foreach(println)
+    */
+
+    var and = ands.head
+    var join = Join(inputs.head, inputs.tail.head, joinType, Some(and))
 
     if (inputs.length > 2) {
       if (joinType != Inner) {
@@ -95,11 +133,11 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
       }
 
       while (inputs.length >= 3) {
-        // Remove the second element of expressions
-        expressions = expressions.head +: expressions.tail.tail
-        exp = Equals(expressions.head, expressions.tail.head)
+        and = And(ands.head, ands.tail.head)
+        // Remove the second element of ands
+        ands = ands.head +: ands.tail.tail
         inputs = join +: inputs.tail.tail
-        join = Join(inputs.head, inputs.tail.head, Inner, Some(exp))
+        join = Join(inputs.head, inputs.tail.head, Inner, Some(and))
       }
     }
 

@@ -128,7 +128,7 @@ case class PigStoreCommand(
   extends UnaryNode with Command {
 
   override protected[sql] lazy val sideEffectResult: Seq[Row] = {
-    val childRdd = child.execute()
+    val childRdd = child.execute().map(_.copy())
     assert(childRdd != null)
     childRdd.saveAsCSVFile(path, delimiter)
     childRdd.collect().toSeq
