@@ -18,6 +18,15 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
   extends LogicalRelationalNodesVisitor(plan, new DependencyOrderWalker(plan))
   with PigTranslationVisitor[PigOperator, SparkLogicalPlan] {
 
+  /**
+   * The general case: just get the translation of pigOp and return its output schema
+   */
+  override def getSchema(pigOp: PigOperator): Seq[Attribute] = {
+    val sparkInput = getTranslation(pigOp)
+    // This works for PigLoad, but will it work for other things?
+    sparkInput.output
+  }
+
   override def visit(pigCross: LOCross) = {
     val inputs = pigCross.getInputs.map(getTranslation)
     var left: SparkLogicalPlan = null
@@ -51,6 +60,32 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
     val sparkExpression = translateExpression(pigFilter.getFilterPlan)
     val filter = Filter(condition = sparkExpression, child = sparkChild)
     updateStructures(pigFilter, filter)
+  }
+
+  /**
+   * If expr is already a NamedExpression, return it. Otherwise, give it a new alias.
+   */
+  protected def giveAliases(exprs: Seq[SparkExpression]): Seq[NamedExpression] = {
+    def giveAlias(expr: SparkExpression, i: Int): NamedExpression = {
+      expr match {
+        case ne: NamedExpression => ne
+        case _ => Alias(expr, s"c$i")()
+      }
+    }
+    exprs.zipWithIndex.map{ case (e, i) => giveAlias(e, i) }
+  }
+
+  // It looks like we just want to take the ForEach's inner plan and make a Project expression
+  // TODO: Check if this works for more complicated inner plans
+  override def visit(pigForEach: LOForEach) = {
+    val sparkChild = getChild(pigForEach)
+    val visitor = new NestedPlanTranslationVisitor(pigForEach.getInnerPlan, this)
+    visitor.visit()
+    val exprs = visitor.getPlans
+    val namedExprs = giveAliases(exprs)
+
+    val proj = Project(namedExprs, sparkChild)
+    updateStructures(pigForEach, proj)
   }
 
   /**

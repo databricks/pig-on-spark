@@ -8,7 +8,7 @@ import org.apache.spark.sql.catalyst.types._
 
 import scala.collection.mutable.HashMap
 import scala.collection.JavaConversions._
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.pig.newplan.logical.relational.LogicalSchema
 
 /**
@@ -59,18 +59,29 @@ trait PigTranslationVisitor[A <: PigOperator, B <: SparkTreeNode[B]] {
    * Returns the first child that we have stored for pigOp (which should be a UnaryNode)
    * TODO: How do we handle the case where PigOp is not a UnaryNode? Should we even check here?
    */
-  protected def getChild(pigOp: A) = {
+  def getChild(pigOp: A) = {
     // Get this node's children from our map and build the node
     val childList = pigToSparkChildrenMap.get(pigOp)
     childList match {
-      case None => throw new NoSuchElementException
+      case None =>
+        val child = pigOp.getPlan.getPredecessors(pigOp).head
+        throw new NoSuchElementException(child.toString)
       case Some(realList) => realList.head
     }
   }
 
   def getTranslation(pigOp: A) = {
-    pigToSparkMap.get(pigOp).getOrElse(throw new NoSuchElementException)
+    pigToSparkMap.get(pigOp).getOrElse(throw new NoSuchElementException(pigOp.toString))
   }
+
+  /**
+   * Returns the output schema for pigOp. In most cases, we can just get the Catalyst translation
+   *  of pigOp and then take its output schema. However, this doesn't work during ForEach inner
+   *  plans, when we have Catalyst project expressions asking for the schema they should take as
+   *  input. The project expression's input pigOp is an LOInnerLoad, but we translate LOInnerLoads
+   *  to Catalyst expressions, which don't have an output schema, rather than logical nodes.
+   */
+  def getSchema(pigOp: PigOperator): Seq[Attribute]
 
   /**
    * Sets a mapping from the (Pig) parents of the just-translated Pig operator to its translation

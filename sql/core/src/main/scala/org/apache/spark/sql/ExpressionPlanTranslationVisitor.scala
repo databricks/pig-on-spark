@@ -1,5 +1,6 @@
 package org.apache.spark.sql
 
+import org.apache.pig.newplan.{Operator => PigOperator}
 import org.apache.pig.newplan.logical.expression.{
 LogicalExpression => PigExpression,
 BinaryExpression => PigBinaryExpression,
@@ -7,7 +8,7 @@ UnaryExpression => PigUnaryExpression, _}
 import org.apache.pig.newplan.DependencyOrderWalker
 
 import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, _}
-import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
+import org.apache.spark.sql.catalyst.analysis.{Star, UnresolvedAttribute}
 import org.apache.spark.sql.catalyst.types.StringType
 
 import scala.collection.JavaConversions._
@@ -16,9 +17,17 @@ import org.apache.pig.newplan.logical.relational.LogicalRelationalOperator
 /**
  * Walks a Pig LogicalExpressionPlan tree and translates it into an equivalent Catalyst expression plan
  */
-class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan, parent: LogicalPlanTranslationVisitor)
+class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan, parent: PigTranslationVisitor[_,_])
   extends LogicalExpressionVisitor(plan, new DependencyOrderWalker(plan, true))
   with PigTranslationVisitor[PigExpression, SparkExpression] {
+
+  /**
+   * Not supported: Catalyst expressions don't have attached schemas, and we should never use an
+   *  ExpressionPlanTranslationVisitor as the parent to another ExpressionPlanTranslationVisitor
+   */
+  override def getSchema(pigOp: PigOperator): Seq[Attribute] = {
+    throw new NotImplementedError("getSchema not implemented for ExpressionPlanTranslationVisitor")
+  }
 
   // predicate ? left : right
   override def visit(pigCond: BinCondExpression) {
@@ -73,27 +82,38 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan, parent: Logi
     updateStructures(pigNE, not)
   }
 
+  // TODO: Handle range and star projects
   override def visit(pigProj: ProjectExpression) {
     if (pigProj.getColAlias != null) {
       val proj = new UnresolvedAttribute(pigProj.getColAlias)
       updateStructures(pigProj, proj)
     }
     else {
-      val column = pigProj.getColNum
       val inputNum = pigProj.getInputNum
       val inputs = pigProj.getAttachedRelationalOp.getPlan.getPredecessors(pigProj.getAttachedRelationalOp)
-      val sparkInput = parent.getTranslation(inputs(inputNum))
-      // This works for PigLoad, but will it work for other things?
-      val sparkSchema = sparkInput.output
+      val sparkSchema = parent.getSchema(inputs(inputNum))
 
-      // HACK!HACK!HACK!
-      if (sparkSchema.head.name == "") {
-        val proj = BoundReference(column, AttributeReference("", StringType)())
+      // Kind of a hack to handle the InnerLoad nonsense
+      if (sparkSchema.length == 1) {
+        val proj = sparkSchema.head
         updateStructures(pigProj, proj)
       }
+      else if (pigProj.isProjectStar) {
+        val proj = Star(None)
+        updateStructures(pigProj, proj)
+      }
+        /*
+      else if (pigProj.isRangeProject) {
+        val fields = sparkSchema.slice(pigProj.getStartCol, pigProj.getEndCol)
+        val proj = MutableProjection(fields)
+        updateStructures(pigProj, proj)
+      }
+      */
       else {
+        val column = pigProj.getColNum
         val proj = sparkSchema(column)
         updateStructures(pigProj, proj)
+
       }
     }
   }

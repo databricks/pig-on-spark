@@ -28,6 +28,7 @@ class PigLogicalExpressionPlanDumpVisitor(plan: LogicalExpressionPlan, indent: S
     dumpExp(op)
     printWithIndent("   inputNum: " + op.getInputNum)
     printWithIndent("   colNum: " + op.getColNum)
+    printWithIndent("   isStar: " + op.isProjectStar)
     printWithIndent("   colAlias: " + op.getColAlias)
     printWithIndent("   projectedOperator: " + op.getProjectedOperator)
     printWithIndent("   attachedRelationalOp: " + op.getAttachedRelationalOp)
