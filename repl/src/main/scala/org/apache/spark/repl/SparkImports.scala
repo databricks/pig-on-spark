@@ -197,7 +197,7 @@ trait SparkImports {
           for (imv <- x.definedNames) {
             if (currentImps contains imv) addWrapper()
             val objName = req.lineRep.readPath
-            val valName = "$VAL" + newValId()
+            val valName = "$VAL" + req.lineRep.lineId
 
             if(!code.toString.endsWith(".`" + imv + "`;\n")) { // Which means already imported
                 code.append("val " + valName + " = " + objName + ".INSTANCE;\n")
@@ -222,10 +222,4 @@ trait SparkImports {
   private def membersAtPickler(sym: Symbol): List[Symbol] =
     beforePickler(sym.info.nonPrivateMembers.toList)
 
-  private var curValId = 0
-
-  private def newValId(): Int = {
-    curValId += 1
-    curValId
-  }
 }
