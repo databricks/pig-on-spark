@@ -175,6 +175,17 @@ case class PigLoadCommand(
   }
 
   def execute() = {
+    // The -1 option lets us keep empty strings at the end of a line
+    val splitLines = sc.textFile(path).map(_.split(delimiter, -1))
+
+    val rowRdd = splitLines.map { r =>
+      val withNulls = r.map(x => if (x == "") null else x)
+      new GenericRow(withNulls.asInstanceOf[Array[Any]])
+    }
+
+    rowRdd.map(castProjection)
+
+    /*
     val rowRdd = sc.parallelize(sideEffectResult)
 
     // TODO: This is a janky hack. A cleaner public API for parsing files into schemaRDD is on our to-do list
@@ -183,6 +194,7 @@ case class PigLoadCommand(
 
     sqc.registerRDDAsTable(schemaRDD, alias)
     schemaRDD
+    */
   }
 
   /**
