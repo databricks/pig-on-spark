@@ -8,11 +8,11 @@ class PigLogicalExpressionPlanDumpVisitor(plan: LogicalExpressionPlan, indent: S
   extends LogicalExpressionVisitor(plan, new DependencyOrderWalker(plan, true)) {
 
   def printWithIndent(str: String) = {
-    println(indent + str)
+    println("   " + indent + str)
   }
 
   def dumpExp(exp: LogicalExpression) = {
-    printWithIndent(exp.toString)
+    println(indent + exp.toString)
   }
 
   override def visit(op: AndExpression) = { dumpExp(op) }
@@ -26,16 +26,17 @@ class PigLogicalExpressionPlanDumpVisitor(plan: LogicalExpressionPlan, indent: S
 
   override def visit(op: ProjectExpression) = {
     dumpExp(op)
-    printWithIndent("   inputNum: " + op.getInputNum)
-    printWithIndent("   colNum: " + op.getColNum)
-    printWithIndent("   isStar: " + op.isProjectStar)
-    printWithIndent("   colAlias: " + op.getColAlias)
-    printWithIndent("   projectedOperator: " + op.getProjectedOperator)
-    printWithIndent("   attachedRelationalOp: " + op.getAttachedRelationalOp)
-    printWithIndent("   attachedRelationalOp.getSchema: " + op.getAttachedRelationalOp.getSchema)
-    printWithIndent("   attachedRelationalOp.predecessors:")
+    printWithIndent("fieldSchema.alias: " + op.getFieldSchema.alias)
+    printWithIndent("inputNum: " + op.getInputNum)
+    printWithIndent("colNum: " + op.getColNum)
+    printWithIndent("isStar: " + op.isProjectStar)
+    printWithIndent("colAlias: " + op.getColAlias)
+    printWithIndent("projectedOperator: " + op.getProjectedOperator)
+    printWithIndent("attachedRelationalOp: " + op.getAttachedRelationalOp)
+    printWithIndent("attachedRelationalOp.getSchema: " + op.getAttachedRelationalOp.getSchema)
+    printWithIndent("attachedRelationalOp.predecessors:")
     op.getAttachedRelationalOp.getPlan.getPredecessors(op.getAttachedRelationalOp).map{
-      pred => printWithIndent("      " + pred)
+      pred => printWithIndent("   " + pred)
     }
   }
 
@@ -91,10 +92,21 @@ class PigLogicalExpressionPlanDumpVisitor(plan: LogicalExpressionPlan, indent: S
   override def visit(op: BinCondExpression) = { dumpExp(op) }
 
 
-  override def visit(op: UserFuncExpression) = { dumpExp(op) }
+  override def visit(op: UserFuncExpression) = {
+    dumpExp(op)
+    printWithIndent("signature: " + op.getSignature)
+    printWithIndent("funcSpec: " + op.getFuncSpec)
+    printWithIndent("arguments: ")
+    op.getArguments.foreach(a => printWithIndent("   " + a.toString))
+  }
 
 
-  override def visit(op: DereferenceExpression) = { dumpExp(op) }
+  override def visit(op: DereferenceExpression) = {
+    dumpExp(op)
+    printWithIndent("bagColumns: " + op.getBagColumns.mkString("[", ", ", "]"))
+    printWithIndent("rawColumns: " + op.getRawColumns.mkString("[", ", ", "]"))
+    printWithIndent("referredExpression: " + op.getReferredExpression)
+  }
 
 
   override def visit(op: RegexExpression) = { dumpExp(op) }

@@ -1,5 +1,8 @@
 package org.apache.spark.sql
 
+import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
+
 import org.apache.pig.newplan.{Operator => PigOperator}
 import org.apache.pig.newplan.logical.expression.{
 LogicalExpression => PigExpression,
@@ -8,24 +11,24 @@ UnaryExpression => PigUnaryExpression, _}
 import org.apache.pig.newplan.DependencyOrderWalker
 
 import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, _}
-import org.apache.spark.sql.catalyst.analysis.{Star, UnresolvedAttribute}
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.types.StringType
 
-import scala.collection.JavaConversions._
 import org.apache.pig.newplan.logical.relational.LogicalRelationalOperator
 
 /**
- * Walks a Pig LogicalExpressionPlan tree and translates it into an equivalent Catalyst expression plan
+ * Walks a Pig LogicalExpressionPlan tree and translates it into an equivalent Catalyst expression
  */
-class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan, parent: PigTranslationVisitor[_,_])
+class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan,
+                                       parent: PigTranslationVisitor[_,_])
   extends LogicalExpressionVisitor(plan, new DependencyOrderWalker(plan, true))
   with PigTranslationVisitor[PigExpression, SparkExpression] {
 
   /**
-   * Not supported: Catalyst expressions don't have attached schemas, and we should never use an
-   *  ExpressionPlanTranslationVisitor as the parent to another ExpressionPlanTranslationVisitor
+   * Not supported: we should never use an ExpressionPlanTranslationVisitor as the parent to another
+   *  ExpressionPlanTranslationVisitor
    */
-  override def getSchema(pigOp: PigOperator): Seq[Attribute] = {
+  override def getSchema(pigOp: PigOperator): Bag = {
     throw new NotImplementedError("getSchema not implemented for ExpressionPlanTranslationVisitor")
   }
 
@@ -64,6 +67,15 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan, parent: PigT
     updateStructures(pigConst, constant)
   }
 
+  override def visit(pigDeref: DereferenceExpression) {
+    val cols = pigDeref.getBagColumns.asScala.toList
+
+    val refExp = pigDeref.getReferredExpression
+    val sparkSchema = getOutput(refExp)
+
+    sparkSchema.projectAndUpdateStructures(cols, pigDeref, this)
+  }
+
   override def visit(pigLookup: MapLookupExpression) {
     val map = getTranslation(pigLookup.getMap)
     // Pig keys are always strings
@@ -82,7 +94,6 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan, parent: PigT
     updateStructures(pigNE, not)
   }
 
-  // TODO: Handle range and star projects
   override def visit(pigProj: ProjectExpression) {
     if (pigProj.getColAlias != null) {
       val proj = new UnresolvedAttribute(pigProj.getColAlias)
@@ -90,32 +101,54 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan, parent: PigT
     }
     else {
       val inputNum = pigProj.getInputNum
-      val inputs = pigProj.getAttachedRelationalOp.getPlan.getPredecessors(pigProj.getAttachedRelationalOp)
+      val relOp = pigProj.getAttachedRelationalOp
+      val inputs = relOp.getPlan.getPredecessors(relOp)
       val sparkSchema = parent.getSchema(inputs(inputNum))
 
-      // Kind of a hack to handle the InnerLoad nonsense
-      if (sparkSchema.length == 1) {
-        val proj = sparkSchema.head
-        updateStructures(pigProj, proj)
-      }
-      else if (pigProj.isProjectStar) {
-        val proj = Star(None)
-        updateStructures(pigProj, proj)
-      }
-        /*
-      else if (pigProj.isRangeProject) {
-        val fields = sparkSchema.slice(pigProj.getStartCol, pigProj.getEndCol)
-        val proj = MutableProjection(fields)
-        updateStructures(pigProj, proj)
-      }
-      */
-      else {
-        val column = pigProj.getColNum
-        val proj = sparkSchema(column)
-        updateStructures(pigProj, proj)
-
-      }
+      val indices = {
+        if (pigProj.isProjectStar) {
+          (0 until sparkSchema.contents.length).toList
+        }
+        else if (pigProj.isRangeProject) {
+          (pigProj.getStartCol to pigProj.getEndCol).toList
+        }
+        else {
+          List(pigProj.getColNum)
+        }
+      }.asInstanceOf[List[Integer]]
+      sparkSchema.projectAndUpdateStructures(indices, pigProj, this)
     }
+  }
+
+  protected def matchBuiltin(funcName: String, args: Seq[SparkExpression]) = {
+    funcName match {
+      case "SUM" => Sum(args.head)
+      case "MIN" => Min(args.head)
+      case "MAX" => Max(args.head)
+      case "AVG" => Average(args.head)
+      // We don't actually support COUNT becuase it requires projecting a bag
+      //case "COUNT" => Count(args.head)
+    }
+  }
+
+  override def visit(pigUDF: UserFuncExpression) {
+    val args = pigUDF.getArguments.map(getTranslation)
+
+    val funcClass = pigUDF.getFuncSpec.getClassName
+
+    // For now, we only support Pig builtin functions
+    if (!funcClass.startsWith("org.apache.pig.builtin.")) {
+      throw new NotImplementedError(s"$funcClass is not a builtin function")
+    }
+
+    if (args.length > 1) {
+      throw new NotImplementedError(s"UDF $funcClass takes more than 1 arg")
+    }
+
+    val funcName = funcClass.split("\\.").last
+
+    val sparkUDF = matchBuiltin(funcName, args)
+    updateStructures(pigUDF, sparkUDF)
   }
 
   // Unary Expressions

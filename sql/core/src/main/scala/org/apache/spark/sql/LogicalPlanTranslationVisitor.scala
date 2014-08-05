@@ -1,15 +1,20 @@
 package org.apache.spark.sql
 
+import java.util.NoSuchElementException
+
 import scala.collection.JavaConversions._
 
+import org.apache.pig.impl.util.MultiMap
 import org.apache.pig.newplan.{OperatorPlan => PigOperatorPlan, Operator => PigOperator, DependencyOrderWalker}
-import org.apache.pig.newplan.logical.expression.{LogicalExpressionPlan => PigExpression}
+import org.apache.pig.newplan.logical.expression.{LogicalExpressionPlan => PigExpressionPlan,
+LogicalExpression => PigExpression}
 import org.apache.pig.newplan.logical.relational.{LogicalPlan => PigLogicalPlan, _}
 
 import org.apache.spark.sql.catalyst.types.{StringType, BinaryType, NullType, IntegerType}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, _}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan => SparkLogicalPlan, _}
+import org.apache.spark.sql.Bag._
 
 /**
  * Walks the PigOperatorPlan and builds an equivalent SparkLogicalPlan
@@ -19,27 +24,74 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
   with PigTranslationVisitor[PigOperator, SparkLogicalPlan] {
 
   /**
-   * The general case: just get the translation of pigOp and return its output schema
+   * The general case: first check if we have set output manually, then just get the translation
+   *  of pigOp and return its output schema
    */
-  override def getSchema(pigOp: PigOperator): Seq[Attribute] = {
-    val sparkInput = getTranslation(pigOp)
-    // This works for PigLoad, but will it work for other things?
-    sparkInput.output
+  override def getSchema(pigOp: PigOperator): Bag = {
+    try getOutput(pigOp)
+    catch {
+      case _: NoSuchElementException =>
+        val sparkOp = getTranslation(pigOp)
+        bagFromSchema(sparkOp.output)
+    }
+  }
+
+  /**
+   * Returns the combined output of all sinks from the given PigExpressionPlan
+   */
+  def getExpPlanOutput(expPlan: PigExpressionPlan): Bag = {
+    val eptv = new ExpressionPlanTranslationVisitor(expPlan, this)
+    eptv.visit()
+    val exprBags = expPlan.getSinks.map{ op => eptv.pigToOutputMap(op.asInstanceOf[PigExpression]) }
+    bagOfBags(exprBags)
+  }
+
+  override def visit(pigCogroup: LOCogroup) = {
+    val inputs = getChildren(pigCogroup)
+
+    if (inputs.length > 1) {
+      throw new NotImplementedError("We don't support cogroups on more than 1 input")
+    }
+
+    // Get grouping expressions from the expression plans
+    val planMap = pigCogroup.getExpressionPlans
+    // Will there always be an entry for 0? Will it always be the one we want?
+    val grpExprs = planMap.get(0).map(translateExpression)
+
+    val grpBags = planMap.get(0).map(getExpPlanOutput)
+    val grpOutput = bagOfBags(grpBags)
+
+    // TODO: We should handle the case when the output we want from an input node isn't node.output
+    val output = bagOfBags(grpOutput +: inputs.map(node => bagFromSchema(node.output)))
+    setOutput(pigCogroup, output)
+
+    // Check to make sure that the cogroup is followed by a ForEach (only case we support right now)
+    val next = pigCogroup.getPlan.getSuccessors(pigCogroup).head
+    if (!next.isInstanceOf[LOForEach]) {
+      throw new UnsupportedOperationException("CoGroup must be immediately followed by ForEach")
+    }
+    // Get aggregate expressions from the ForEach
+    val aggExprs = getForEachExprs(next.asInstanceOf[LOForEach])
+
+    val agg = Aggregate(grpExprs, aggExprs, inputs.head)
+
+    // Skip over the ForEach node since we've already processed its plans
+    val afterForEach = next.getPlan.getSuccessors(next)
+    setOutput(next, bagFromSchema(agg.output))
+    afterForEach.map(node => setChild(node, agg))
+
+    // Kind of a hack. Now that we actually have the real output, use that
+    setOutput(pigCogroup, bagFromSchema(agg.output))
+    updateStructures(pigCogroup, agg)
   }
 
   override def visit(pigCross: LOCross) = {
-    val inputs = pigCross.getInputs.map(getTranslation)
-    var left: SparkLogicalPlan = null
-    var right: SparkLogicalPlan = null
+    val inputs = getChildren(pigCross)
 
-    inputs.length match {
+    val (left, right) = inputs.length match {
       case x if x < 1 => throw new IllegalArgumentException("Too few inputs to CROSS")
-      case 1 =>
-        left = inputs.head
-        right = inputs.head
-      case 2 =>
-        left = inputs.head
-        right = inputs.tail.head
+      case 1 => (inputs.head, inputs.head)
+      case 2 => (inputs.head, inputs.tail.head)
       case _ => throw new IllegalArgumentException("Too many inputs to CROSS")
     }
 
@@ -63,7 +115,7 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
   }
 
   /**
-   * If expr is already a NamedExpression, return it. Otherwise, give it a new alias.
+   * If expr is already a NamedExpression, returns it. Otherwise, gives it a new alias.
    */
   protected def giveAliases(exprs: Seq[SparkExpression]): Seq[NamedExpression] = {
     def giveAlias(expr: SparkExpression, i: Int): NamedExpression = {
@@ -75,17 +127,40 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
     exprs.zipWithIndex.map{ case (e, i) => giveAlias(e, i) }
   }
 
-  // It looks like we just want to take the ForEach's inner plan and make a Project expression
-  // TODO: Check if this works for more complicated inner plans
-  override def visit(pigForEach: LOForEach) = {
-    val sparkChild = getChild(pigForEach)
+  /**
+   * Returns the expressions performed by this ForEach
+   */
+  def getForEachExprs(pigForEach: LOForEach): Seq[NamedExpression] = {
     val visitor = new NestedPlanTranslationVisitor(pigForEach.getInnerPlan, this)
     visitor.visit()
-    val exprs = visitor.getPlans
-    val namedExprs = giveAliases(exprs)
+    val exprs = visitor.getSparkPlans
+    // Kind of a hack. This will set the output for the ForEach even if we don't skip it
+    setOutput(pigForEach, visitor.getPlanOutput)
+    giveAliases(exprs)
+  }
 
-    val proj = Project(namedExprs, sparkChild)
-    updateStructures(pigForEach, proj)
+  /**
+   * Returns whether or not we should skip the given ForEach node (we would want to skip it if
+   *  we've already processed it as part of another node, such as a Cogroup)
+   */
+  def skipForEach(pigForEach: LOForEach): Boolean = {
+    val succs = pigForEach.getPlan.getSuccessors(pigForEach)
+    // If this ForEach was bundled up into a Cogroup, then every element of succs should have its
+    //  child set to that Cogroup
+    try {
+      getChild(succs.head).isInstanceOf[Aggregate]
+    }
+    catch { case _: NoSuchElementException => false }
+  }
+
+  // TODO: Check if this works for more complicated inner plans
+  override def visit(pigForEach: LOForEach) = {
+    if (!skipForEach(pigForEach)) {
+      val sparkChild = getChild(pigForEach)
+      val exprs = getForEachExprs(pigForEach)
+      val proj = Project(exprs, sparkChild)
+      updateStructures(pigForEach, proj)
+    }
   }
 
   /**
@@ -121,7 +196,7 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
    * Translates the Pig expressions in lefts and rights to Catalyst expresssions, then creates a
    *  list of equality expression specifying that lefts[i] = rights[i] for all i
    */
-  protected def getEqualExprs(lefts: Seq[PigExpression], rights: Seq[PigExpression]) = {
+  protected def getEqualExprs(lefts: Seq[PigExpressionPlan], rights: Seq[PigExpressionPlan]) = {
     val mixed = lefts.zip(rights)
     mixed.map { case (l, r) =>
       val left = translateExpression(l)
@@ -130,52 +205,52 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
     }
   }
 
-  override def visit(pigJoin: LOJoin) = {
+  /**
+   * Returns a Catalyst equijoin on the given inputs using the given Pig expressions
+   * @param planMap A map from index i -> expressions used to join on inputs[i]
+   * @param inputs The inputs to the join
+   * @param joinType The type of join (ie. INNER, RIGHT, etc.). If inputs.length > 2, must be INNER
+   */
+  protected def joinFromPlanMap(planMap: MultiMap[Integer, PigExpressionPlan],
+                                inputs: Seq[SparkLogicalPlan],
+                                joinType: JoinType): Join = {
     // Creates an expression that is true iff all elements of exprs are true
     def multiAnd(exprs: Seq[SparkExpression]) = { exprs.reduce(And) }
 
-    var inputs = pigJoin.getInputs(plan.asInstanceOf[PigLogicalPlan]).map(getTranslation).toSeq
-    val joinType = getJoinType(pigJoin)
-    val expressionPlans = pigJoin.getExpressionPlans
-    val inputNums = expressionPlans.keySet().toSeq
+    if (inputs.length > 2 && joinType != Inner) {
+      throw new IllegalArgumentException("Outer join with more than 2 inputs")
+    }
 
-    val firstExprs = expressionPlans.get(inputNums.head).toSeq
+    val inputNums = planMap.keySet().toSeq
+    val firstExprs = planMap.get(inputNums.head).toSeq
     val eqSeqs = inputNums.tail.map { i =>
-      val rights = expressionPlans.get(i).toSeq
+      val rights = planMap.get(i).toSeq
       getEqualExprs(firstExprs, rights)
     }
 
+    var inputsVar = inputs
     var ands = eqSeqs.map(multiAnd)
-    /*
-    //var expressions = pigJoin.getExpressionPlanValues.map(translateExpression).toSeq
-    println("contents of getExpressionPlans:")
-    pigJoin.getExpressionPlans.keySet().map { k: Integer =>
-      val p = pigJoin.getExpressionPlans.get(k)
-      println(s"k is $k, p is $p")
-    }
-    println("untranslated expressions: ")
-    pigJoin.getExpressionPlanValues.foreach(println)
-    println("translated expressions: ")
-    expressions.foreach(println)
-    */
-
     var and = ands.head
-    var join = Join(inputs.head, inputs.tail.head, joinType, Some(and))
+    var join = Join(inputsVar.head, inputsVar.tail.head, joinType, Some(and))
 
-    if (inputs.length > 2) {
-      if (joinType != Inner) {
-        throw new IllegalArgumentException("Outer join with more than 2 inputs")
-      }
-
-      while (inputs.length >= 3) {
+    if (inputsVar.length > 2) {
+      while (inputsVar.length >= 3) {
         and = And(ands.head, ands.tail.head)
         // Remove the second element of ands
         ands = ands.head +: ands.tail.tail
-        inputs = join +: inputs.tail.tail
-        join = Join(inputs.head, inputs.tail.head, Inner, Some(and))
+        inputsVar = join +: inputsVar.tail.tail
+        join = Join(inputsVar.head, inputsVar.tail.head, joinType, Some(and))
       }
     }
+    join
+  }
 
+  override def visit(pigJoin: LOJoin) = {
+    val inputs = getChildren(pigJoin).toSeq
+    val joinType = getJoinType(pigJoin)
+    val planMap = pigJoin.getExpressionPlans
+
+    val join = joinFromPlanMap(planMap, inputs, joinType)
     updateStructures(pigJoin, join)
   }
 
@@ -242,12 +317,6 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
 
     val store = PigStore(path = pathname, delimiter = delimiter, child = sparkChild)
     updateStructures(pigStore, store)
-  }
-
-  protected def translateExpression(pigExpression: PigExpression): SparkExpression = {
-    val eptv = new ExpressionPlanTranslationVisitor(pigExpression, this)
-    eptv.visit()
-    eptv.getRoot()
   }
 
   /**

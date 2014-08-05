@@ -244,7 +244,7 @@ trait HiveTypeCoercion {
       case e if !e.childrenResolved => e
 
       // Pig ByteArrays have different casting rules for booleans
-      case Cast(e, BooleanType) if e.dataType != ByteArrayType => {
+      case Cast(e, BooleanType) => {
         Not(Equals(e, Literal(0)))
       }
 

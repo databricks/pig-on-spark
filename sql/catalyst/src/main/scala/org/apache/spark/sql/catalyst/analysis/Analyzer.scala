@@ -35,7 +35,7 @@ object SimpleAnalyzer extends Analyzer(EmptyCatalog, EmptyFunctionRegistry, true
  * a [[FunctionRegistry]].
  */
 class Analyzer(catalog: Catalog, registry: FunctionRegistry, caseSensitive: Boolean)
-  extends RuleExecutor[LogicalPlan] with HiveTypeCoercion {
+  extends RuleExecutor[LogicalPlan] with PigTypeCoercion {
 
   // TODO: pass this in as a parameter.
   val fixedPoint = FixedPoint(100)

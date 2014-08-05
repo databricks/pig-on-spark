@@ -349,6 +349,8 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "CoGroupFlatten-4",
     "CoGroupFlatten-5",
     "CoGroupFlatten-6",
+    "Debug-3",
+    "Debug-4",
     "Distinct-5",
     "FilterUdf-0",
     "FilterUdf-1",
@@ -358,12 +360,6 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "GroupAggFunc-11",
     "GroupAggFunc-12",
     "GroupAggFunc-2",
-    "GroupAggFunc-4",
-    "GroupAggFunc-5",
-    "GroupAggFunc-6",
-    "GroupAggFunc-7",
-    "GroupAggFunc-8",
-    "GroupAggFunc-9",
     "ImplicitSplit-1",
     "Limit-10",
     "Limit-5",
@@ -412,7 +408,11 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
 
     // Division by 0; looks like Pig makes this null
     "Types-1",
-    "Types-35"
+    "Types-35",
+
+    // Floating point arithmetic errors :(
+    "GroupAggFunc-5",
+    "GroupAggFunc-7"
   )
 
   /**
@@ -440,6 +440,7 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "Debug-0",
     "Debug-1",
     "Debug-2",
+    "Debug-5",
     "Distinct-0",
     "Distinct-2",
     "Distinct-4",
@@ -502,6 +503,11 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "Glob-5",
     "Glob-6",
 
+    "GroupAggFunc-4",
+    "GroupAggFunc-6",
+    "GroupAggFunc-8",
+    "GroupAggFunc-9",
+
     "Join-0",
     "Join-10",
     "Join-11",
@@ -547,5 +553,5 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "Types-40",
     "Types-41",
     "Types-42"
- )
+  )
 }

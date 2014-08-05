@@ -1,12 +1,15 @@
 package org.apache.spark.sql
 
-import org.apache.pig.newplan.{Operator => PigOperator, DependencyOrderWalker, OperatorPlan => PigOperatorPlan}
+import scala.collection.JavaConversions._
+
+import org.apache.pig.newplan.{Operator => PigOperator, DependencyOrderWalker,
+OperatorPlan => PigOperatorPlan}
 import org.apache.pig.newplan.logical.relational._
 
-import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, Attribute}
-
-import scala.collection.JavaConversions._
+import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, NamedExpression,
+Alias}
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
+import org.apache.spark.sql.Bag._
 
 /**
  * Translates the inner plan of a ForEach node. The nodes in this inner plan are technically Pig
@@ -23,51 +26,46 @@ class NestedPlanTranslationVisitor(plan: PigOperatorPlan, parent: LogicalPlanTra
    *  get the output schema from the LOForEach node itself, rather than the LOInnerLoad node that
    *  is technically the project expression's attached operation
    */
-  override def getSchema(pigOp: PigOperator): Seq[Attribute] = {
-    pigOp match {
-      case il: LOInnerLoad =>
-        val forEach = il.getLOForEach
-        val column = il.getProjection.getColNum
+  override def getSchema(pigOp: PigOperator): Bag = getOutput(pigOp)
 
-        val child = parent.getChild(forEach)
-        Seq(child.output(column))
-      case _ =>
-        throw new NotImplementedError(
-          "NestedPlanTranslationVisitor.getSchema only supported for LOInnerLoad")
-    }
-  }
+  protected var sparkPlans: List[SparkExpression] = Nil
+  protected var output: Bag = null
 
-  protected var projectPlans: List[SparkExpression] = Nil
+  def getSparkPlans = sparkPlans
 
-  def getPlans = projectPlans
+  def getPlanOutput = output
 
   override def visit(op: LOGenerate) = {
     val plans = op.getOutputPlans
-    val exps = plans.map{ p =>
-      val child = new ExpressionPlanTranslationVisitor(p, this)
-      child.visit()
-      child.getRoot()
+    val exprs = plans.map(translateExpression)
+
+    // Later Pig expressions will expect this generate's output to have particular field names.
+    // Minor hack: we assume that each expression produces only one field
+    val aliasedOutput = exprs.zip(op.getOutputPlanSchemas).map {
+      // If the output already has the desired name, no need to alias it with the same name
+      case (namedExpr: NamedExpression, schema) if namedExpr.name == schema.getField(0).alias =>
+        namedExpr
+      case (expr, schema) =>
+        Alias(expr, schema.getField(0).alias)()
     }
 
-    projectPlans ++= exps
+    sparkPlans ++= aliasedOutput
+    output = bagFromSchema(aliasedOutput)
   }
 
   override def visit(op: LOInnerLoad) = {
-    val pigProj = op.getProjection
-    if (pigProj.getColAlias != null) {
-      val proj = new UnresolvedAttribute(pigProj.getColAlias)
-      updateStructures(op, proj)
+    val proj = op.getProjection
+    if (proj.getColAlias != null) {
+      updateStructures(op, new UnresolvedAttribute(proj.getColAlias))
     }
     else {
-      val column = pigProj.getColNum
-      val inputNum = pigProj.getInputNum
+      val column = proj.getColNum
+      val inputNum = proj.getInputNum
       val forEach = op.getLOForEach
       val inputs = forEach.getPlan.getPredecessors(forEach)
 
       val sparkSchema = parent.getSchema(inputs(inputNum))
-
-      val proj = sparkSchema(column)
-      updateStructures(op, proj)
+      sparkSchema.projectAndUpdateStructures(column, op, this)
     }
   }
 }
