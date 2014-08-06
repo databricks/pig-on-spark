@@ -23,6 +23,9 @@ import org.apache.spark.sql.catalyst.types.BooleanType
 
 
 object InterpretedPredicate {
+  def apply(expression: Expression, inputSchema: Seq[Attribute]): (Row => Boolean) =
+    apply(BindReferences.bindReference(expression, inputSchema))
+
   def apply(expression: Expression): (Row => Boolean) = {
     (r: Row) => expression.eval(r).asInstanceOf[Boolean]
   }
@@ -52,7 +55,7 @@ trait PredicateHelper {
    *
    * For example consider a join between two relations R(a, b) and S(c, d).
    *
-   * `canEvaluate(Equals(a,b), R)` returns `true` where as `canEvaluate(Equals(a,c), R)` returns
+   * `canEvaluate(EqualTo(a,b), R)` returns `true` where as `canEvaluate(EqualTo(a,c), R)` returns
    * `false`.
    */
   protected def canEvaluate(expr: Expression, plan: LogicalPlan): Boolean =
@@ -140,7 +143,7 @@ abstract class BinaryComparison extends BinaryPredicate {
   self: Product =>
 }
 
-case class Equals(left: Expression, right: Expression) extends BinaryComparison {
+case class EqualTo(left: Expression, right: Expression) extends BinaryComparison {
   def symbol = "="
   override def eval(input: Row): Any = {
     val l = left.eval(input)
@@ -149,6 +152,22 @@ case class Equals(left: Expression, right: Expression) extends BinaryComparison 
     } else {
       val r = right.eval(input)
       if (r == null) null else l == r
+    }
+  }
+}
+
+case class EqualNullSafe(left: Expression, right: Expression) extends BinaryComparison {
+  def symbol = "<=>"
+  override def nullable = false
+  override def eval(input: Row): Any = {
+    val l = left.eval(input)
+    val r = right.eval(input)
+    if (l == null && r == null) {
+      true
+    } else if (l == null || r == null) {
+      false
+    } else {
+      l == r
     }
   }
 }
@@ -233,10 +252,12 @@ case class CaseWhen(branches: Seq[Expression]) extends Expression {
     branches.sliding(2, 2).collect { case Seq(cond, _) => cond }.toSeq
   @transient private[this] lazy val values =
     branches.sliding(2, 2).collect { case Seq(_, value) => value }.toSeq
+  @transient private[this] lazy val elseValue =
+    if (branches.length % 2 == 0) None else Option(branches.last)
 
   override def nullable = {
     // If no value is nullable and no elseValue is provided, the whole statement defaults to null.
-    values.exists(_.nullable) || (values.length % 2 == 0)
+    values.exists(_.nullable) || (elseValue.map(_.nullable).getOrElse(true))
   }
 
   override lazy val resolved = {

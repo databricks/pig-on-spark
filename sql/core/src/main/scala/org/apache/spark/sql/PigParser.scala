@@ -1,20 +1,29 @@
 package org.apache.spark.sql
 
-import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan => SparkLogicalPlan}
 import org.apache.pig.impl.PigContext
 import org.apache.pig.PigServer
 import org.apache.pig.newplan.logical.relational.{LogicalPlan => PigLogicalPlan}
 
+import org.apache.spark.SparkContext
+import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan => SparkLogicalPlan}
+
 /**
  * Parses a Pig Latin query string into a Spark LogicalPlan. Hopefully.
  */
-class PigParser(pc: PigContext) {
+class PigParser(pc: PigContext, sc: SparkContext) {
+
+  /**
+   * Translates the given Pig Latin query into a Catalyst logical plan
+   */
+  def apply(input: String): SparkLogicalPlan = {
+    val pigLogicalPlan = queryToPigPlan(input)
+    pigPlanToSparkPlan(pigLogicalPlan)
+  }
+
   /**
    * Converts the given Pig Latin query into a Pig LogicalPlan
-   * @param query The Pig Latin query string to be processed
-   * @return
    */
-  def pigPlanOfQuery(query: String): PigLogicalPlan = {
+  def queryToPigPlan(query: String): PigLogicalPlan = {
     val pigServer: PigServer = new PigServer(pc)
     pigServer.setBatchOn
     pigServer.registerQuery(query)
@@ -23,13 +32,8 @@ class PigParser(pc: PigContext) {
     buildLp.invoke(pigServer).asInstanceOf[PigLogicalPlan]
   }
 
-  def apply(input: String): SparkLogicalPlan = {
-    val pigLogicalPlan = pigPlanOfQuery(input)
-    pigPlanToSparkPlan(pigLogicalPlan)
-  }
-
   def pigPlanToSparkPlan(pigLogicalPlan: PigLogicalPlan): SparkLogicalPlan = {
-    val lptv = new LogicalPlanTranslationVisitor(pigLogicalPlan)
+    val lptv = new LogicalPlanTranslationVisitor(pigLogicalPlan, sc)
     lptv.visit()
     lptv.getRoot()
   }

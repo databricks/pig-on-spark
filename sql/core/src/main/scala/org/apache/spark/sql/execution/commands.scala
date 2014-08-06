@@ -17,12 +17,17 @@
 
 package org.apache.spark.sql.execution
 
+import org.apache.spark.Logging
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SchemaRDD, SQLContext, Row}
+
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.catalyst.types.ByteArrayType
+import org.apache.spark.sql.catalyst.errors.TreeNodeException
+import org.apache.spark.sql.catalyst.expressions.{Attribute, GenericRow}
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.{SQLConf, SQLContext}
 
 trait Command {
   /**
@@ -44,28 +49,53 @@ trait Command {
 case class SetCommand(
     key: Option[String], value: Option[String], output: Seq[Attribute])(
     @transient context: SQLContext)
-  extends LeafNode with Command {
+  extends LeafNode with Command with Logging {
 
-  override protected[sql] lazy val sideEffectResult: Seq[(String, String)] = (key, value) match {
+  override protected[sql] lazy val sideEffectResult: Seq[String] = (key, value) match {
     // Set value for key k.
     case (Some(k), Some(v)) =>
-      context.set(k, v)
-      Array(k -> v)
+      if (k == SQLConf.Deprecated.MAPRED_REDUCE_TASKS) {
+        logWarning(s"Property ${SQLConf.Deprecated.MAPRED_REDUCE_TASKS} is deprecated, " +
+          s"automatically converted to ${SQLConf.SHUFFLE_PARTITIONS} instead.")
+        context.set(SQLConf.SHUFFLE_PARTITIONS, v)
+        Array(s"${SQLConf.SHUFFLE_PARTITIONS}=$v")
+      } else {
+        context.set(k, v)
+        Array(s"$k=$v")
+      }
 
     // Query the value bound to key k.
     case (Some(k), _) =>
-      Array(k -> context.getOption(k).getOrElse("<undefined>"))
+      // TODO (lian) This is just a workaround to make the Simba ODBC driver work.
+      // Should remove this once we get the ODBC driver updated.
+      if (k == "-v") {
+        val hiveJars = Seq(
+          "hive-exec-0.12.0.jar",
+          "hive-service-0.12.0.jar",
+          "hive-common-0.12.0.jar",
+          "hive-hwi-0.12.0.jar",
+          "hive-0.12.0.jar").mkString(":")
+
+        Array(
+          "system:java.class.path=" + hiveJars,
+          "system:sun.java.command=shark.SharkServer2")
+      }
+      else {
+        Array(s"$k=${context.getOption(k).getOrElse("<undefined>")}")
+      }
 
     // Query all key-value pairs that are set in the SQLConf of the context.
     case (None, None) =>
-      context.getAll
+      context.getAll.map { case (k, v) =>
+        s"$k=$v"
+      }
 
     case _ =>
       throw new IllegalArgumentException()
   }
 
   def execute(): RDD[Row] = {
-    val rows = sideEffectResult.map { case (k, v) => new GenericRow(Array[Any](k, v)) }
+    val rows = sideEffectResult.map { line => new GenericRow(Array[Any](line)) }
     context.sparkContext.parallelize(rows, 1)
   }
 
@@ -73,16 +103,25 @@ case class SetCommand(
 }
 
 /**
+ * An explain command for users to see how a command will be executed.
+ *
+ * Note that this command takes in a logical plan, runs the optimizer on the logical plan
+ * (but do NOT actually execute it).
+ *
  * :: DeveloperApi ::
  */
 @DeveloperApi
 case class ExplainCommand(
-    child: SparkPlan, output: Seq[Attribute])(
+    logicalPlan: LogicalPlan, output: Seq[Attribute])(
     @transient context: SQLContext)
-  extends UnaryNode with Command {
+  extends LeafNode with Command {
 
-  // Actually "EXPLAIN" command doesn't cause any side effect.
-  override protected[sql] lazy val sideEffectResult: Seq[String] = this.toString.split("\n")
+  // Run through the optimizer to generate the physical plan.
+  override protected[sql] lazy val sideEffectResult: Seq[String] = try {
+    "Physical execution plan:" +: context.executePlan(logicalPlan).executedPlan.toString.split("\n")
+  } catch { case cause: TreeNodeException[_] =>
+    "Error occurred during query planning: " +: cause.getMessage.split("\n")
+  }
 
   def execute(): RDD[Row] = {
     val explanation = sideEffectResult.map(row => new GenericRow(Array[Any](row)))
@@ -144,67 +183,22 @@ case class PigStoreCommand(
 }
 
 /**
- * PIG
- * Loads the file at the given path, splitting on the given delimiter
- * Stores it into a schemaRDD with the schema given by output and registers it as a table with the given alias
+ * :: DeveloperApi ::
  */
-case class PigLoadCommand(
-                    path: String,
-                    delimiter: String,
-                    alias: String,
-                    output: Seq[Attribute])(
-                    @transient val sc: SparkContext,
-                    @transient val sqc: SQLContext)
+@DeveloperApi
+case class DescribeCommand(child: SparkPlan, output: Seq[Attribute])(
+    @transient context: SQLContext)
   extends LeafNode with Command {
 
-  lazy val castProjection = schemaCaster(output)
-
-  override protected[sql] lazy val sideEffectResult: Seq[GenericRow] = {
-    // The -1 option lets us keep empty strings at the end of a line
-    val splitLines = sc.textFile(path).map(_.split(delimiter, -1))
-
-    val rowRdd = splitLines.map { r =>
-      val withNulls = r.map(x => if (x == "") null else x)
-      new GenericRow(withNulls.asInstanceOf[Array[Any]])
-    }
-
-    // Make sure that castProjection gets initialized during our side effect stage
-    castProjection.currentValue
-
-    rowRdd.collect.toSeq
+  override protected[sql] lazy val sideEffectResult: Seq[(String, String, String)] = {
+    Seq(("# Registered as a temporary table", null, null)) ++
+      child.output.map(field => (field.name, field.dataType.toString, null))
   }
 
-  def execute() = {
-    // The -1 option lets us keep empty strings at the end of a line
-    val splitLines = sc.textFile(path).map(_.split(delimiter, -1))
-
-    val rowRdd = splitLines.map { r =>
-      val withNulls = r.map(x => if (x == "") null else x)
-      new GenericRow(withNulls.asInstanceOf[Array[Any]])
+  override def execute(): RDD[Row] = {
+    val rows = sideEffectResult.map {
+      case (name, dataType, comment) => new GenericRow(Array[Any](name, dataType, comment))
     }
-
-    rowRdd.map(castProjection)
-
-    /*
-    val rowRdd = sc.parallelize(sideEffectResult)
-
-    // TODO: This is a janky hack. A cleaner public API for parsing files into schemaRDD is on our to-do list
-    val leafRdd = ExistingRdd(output, rowRdd.map(castProjection))
-    val schemaRDD = new SchemaRDD(sqc, SparkLogicalPlan(leafRdd))
-
-    sqc.registerRDDAsTable(schemaRDD, alias)
-    schemaRDD
-    */
-  }
-
-  /**
-   * Generates a projections that will cast an all-ByteArray row into a row
-   *  with the types in schema
-   */
-  protected def schemaCaster(schema: Seq[Attribute]): MutableProjection = {
-    val startSchema = (1 to schema.length).toSeq.map(
-      i => new AttributeReference(s"c_$i", ByteArrayType, nullable = true)())
-    val casts = schema.zipWithIndex.map{case (ar, i) => Cast(startSchema(i), ar.dataType)}
-    new MutableProjection(casts, startSchema)
+    context.sparkContext.parallelize(rows, 1)
   }
 }

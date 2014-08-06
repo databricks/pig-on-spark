@@ -31,8 +31,8 @@ case class GetItem(child: Expression, ordinal: Expression) extends Expression {
   override def foldable = child.foldable && ordinal.foldable
   override def references = children.flatMap(_.references).toSet
   def dataType = child.dataType match {
-    case ArrayType(dt) => dt
-    case MapType(_, vt) => vt
+    case ArrayType(dt, _) => dt
+    case MapType(_, vt, _) => vt
   }
   override lazy val resolved =
     childrenResolved &&
@@ -50,6 +50,8 @@ case class GetItem(child: Expression, ordinal: Expression) extends Expression {
         null
       } else {
         if (child.dataType.isInstanceOf[ArrayType]) {
+          // TODO: consider using Array[_] for ArrayType child to avoid
+          // boxing of primitives
           val baseValue = value.asInstanceOf[Seq[_]]
           val o = key.asInstanceOf[Int]
           if (o >= baseValue.size || o < 0) {
@@ -59,7 +61,6 @@ case class GetItem(child: Expression, ordinal: Expression) extends Expression {
           }
         } else {
           val baseValue = value.asInstanceOf[Map[Any, _]]
-          val key = ordinal.eval(input)
           baseValue.get(key).orNull
         }
       }

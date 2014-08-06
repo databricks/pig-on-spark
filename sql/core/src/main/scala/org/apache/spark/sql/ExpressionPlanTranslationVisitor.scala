@@ -89,7 +89,7 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan,
     val left = getTranslation(pigNE.getLhs)
     val right = getTranslation(pigNE.getRhs)
 
-    val equals = new Equals(left, right)
+    val equals = new EqualTo(left, right)
     val not = new Not(equals)
     updateStructures(pigNE, not)
   }
@@ -192,7 +192,7 @@ class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan,
       case _: AddExpression => Add
       case _: AndExpression => And
       case _: DivideExpression => Divide
-      case _: EqualExpression => Equals
+      case _: EqualExpression => EqualTo
       case _: GreaterThanEqualExpression => GreaterThanOrEqual
       case _: GreaterThanExpression => GreaterThan
       case _: LessThanEqualExpression => LessThanOrEqual

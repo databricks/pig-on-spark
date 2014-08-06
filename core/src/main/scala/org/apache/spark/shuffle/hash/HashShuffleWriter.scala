@@ -24,7 +24,7 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.executor.ShuffleWriteMetrics
 import org.apache.spark.scheduler.MapStatus
 
-class HashShuffleWriter[K, V](
+private[spark] class HashShuffleWriter[K, V](
     handle: BaseShuffleHandle[K, V, _],
     mapId: Int,
     context: TaskContext)
@@ -33,6 +33,10 @@ class HashShuffleWriter[K, V](
   private val dep = handle.dependency
   private val numOutputSplits = dep.partitioner.numPartitions
   private val metrics = context.taskMetrics
+
+  // Are we in the process of stopping? Because map tasks can call stop() with success = true
+  // and then call stop() with success = false if they get an exception, we want to make sure
+  // we don't try deleting files, etc twice.
   private var stopping = false
 
   private val blockManager = SparkEnv.get.blockManager
@@ -40,11 +44,24 @@ class HashShuffleWriter[K, V](
   private val ser = Serializer.getSerializer(dep.serializer.getOrElse(null))
   private val shuffle = shuffleBlockManager.forMapTask(dep.shuffleId, mapId, numOutputSplits, ser)
 
-  /** Write a record to this task's output */
-  override def write(record: Product2[K, V]): Unit = {
-    val pair = record.asInstanceOf[Product2[Any, Any]]
-    val bucketId = dep.partitioner.getPartition(pair._1)
-    shuffle.writers(bucketId).write(pair)
+  /** Write a bunch of records to this task's output */
+  override def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
+    val iter = if (dep.aggregator.isDefined) {
+      if (dep.mapSideCombine) {
+        dep.aggregator.get.combineValuesByKey(records, context)
+      } else {
+        records
+      }
+    } else if (dep.aggregator.isEmpty && dep.mapSideCombine) {
+      throw new IllegalStateException("Aggregator is empty for map-side combine")
+    } else {
+      records
+    }
+
+    for (elem <- iter) {
+      val bucketId = dep.partitioner.getPartition(elem._1)
+      shuffle.writers(bucketId).write(elem)
+    }
   }
 
   /** Close this writer, passing along whether the map completed */

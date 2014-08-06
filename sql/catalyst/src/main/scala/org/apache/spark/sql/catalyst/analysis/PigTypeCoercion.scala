@@ -88,7 +88,7 @@ trait PigTypeCoercion extends HiveTypeCoercion {
 
       // Pig ByteArrays have different casting rules for booleans
       case Cast(e, BooleanType) if e.dataType != ByteArrayType => {
-        Not(Equals(e, Literal(0)))
+        Not(EqualTo(e, Literal(0)))
       }
 
       case Cast(e, dataType) if e.dataType == BooleanType => {

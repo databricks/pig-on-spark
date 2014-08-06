@@ -157,6 +157,20 @@ SPARK_MASTER_OPTS supports the following system properties:
 <table class="table">
 <tr><th>Property Name</th><th>Default</th><th>Meaning</th></tr>
 <tr>
+  <td><code>spark.deploy.retainedApplications</code></td>
+  <td>200</td>
+  <td>
+    The maximum number of completed applications to display. Older applications will be dropped from the UI to maintain this limit.<br/>
+  </td>
+</tr>
+<tr>
+  <td><code>spark.deploy.retainedDrivers</code></td>
+  <td>200</td>
+  <td>
+   The maximum number of completed drivers to display. Older drivers will be dropped from the UI to maintain this limit.<br/>
+  </td>
+</tr>
+<tr>
   <td><code>spark.deploy.spreadOut</code></td>
   <td>true</td>
   <td>
@@ -228,18 +242,14 @@ To run an interactive Spark shell against the cluster, run the following command
 
     ./bin/spark-shell --master spark://IP:PORT
 
-Note that if you are running spark-shell from one of the spark cluster machines, the `bin/spark-shell` script will
-automatically set MASTER from the `SPARK_MASTER_IP` and `SPARK_MASTER_PORT` variables in `conf/spark-env.sh`.
-
 You can also pass an option `--cores <numCores>` to control the number of cores that spark-shell uses on the cluster.
 
 # Launching Compiled Spark Applications
 
-Spark supports two deploy modes: applications may run with the driver inside the client process or
-entirely inside the cluster. The
-[`spark-submit` script](submitting-applications.html) provides the
-most straightforward way to submit a compiled Spark application to the cluster in either deploy
-mode.
+The [`spark-submit` script](submitting-applications.html) provides the most straightforward way to
+submit a compiled Spark application to the cluster. For standalone clusters, Spark currently
+only supports deploying the driver inside the client process that is submitting the application
+(`client` deploy mode).
 
 If your application is launched through Spark submit, then the application jar is automatically
 distributed to all worker nodes. For any additional jars that your application depends on, you

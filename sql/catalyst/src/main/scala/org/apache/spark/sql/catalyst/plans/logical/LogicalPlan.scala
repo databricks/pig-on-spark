@@ -27,6 +27,25 @@ abstract class LogicalPlan extends QueryPlan[LogicalPlan] {
   self: Product =>
 
   /**
+   * Estimates of various statistics.  The default estimation logic simply lazily multiplies the
+   * corresponding statistic produced by the children.  To override this behavior, override
+   * `statistics` and assign it an overriden version of `Statistics`.
+   *
+   * '''NOTE''': concrete and/or overriden versions of statistics fields should pay attention to the
+   * performance of the implementations.  The reason is that estimations might get triggered in
+   * performance-critical processes, such as query plan planning.
+   *
+   * @param sizeInBytes Physical size in bytes. For leaf operators this defaults to 1, otherwise it
+   *                    defaults to the product of children's `sizeInBytes`.
+   */
+  case class Statistics(
+    sizeInBytes: BigInt
+  )
+  lazy val statistics: Statistics = Statistics(
+    sizeInBytes = children.map(_.statistics).map(_.sizeInBytes).product
+  )
+
+  /**
    * Returns the set of attributes that are referenced by this node
    * during evaluation.
    */
@@ -41,19 +60,19 @@ abstract class LogicalPlan extends QueryPlan[LogicalPlan] {
   /**
    * Returns true if this expression and all its children have been resolved to a specific schema
    * and false if it is still contains any unresolved placeholders. Implementations of LogicalPlan
-   * can override this (e.g. [[catalyst.analysis.UnresolvedRelation UnresolvedRelation]] should
-   * return `false`).
+   * can override this (e.g.
+   * [[org.apache.spark.sql.catalyst.analysis.UnresolvedRelation UnresolvedRelation]]
+   * should return `false`).
    */
   lazy val resolved: Boolean = !expressions.exists(!_.resolved) && childrenResolved
 
   /**
    * Returns true if all its children of this query plan have been resolved.
    */
-  def childrenResolved = !children.exists(!_.resolved)
+  def childrenResolved: Boolean = !children.exists(!_.resolved)
 
   /**
-   * Optionally resolves the given string to a
-   * [[catalyst.expressions.NamedExpression NamedExpression]]. The attribute is expressed as
+   * Optionally resolves the given string to a [[NamedExpression]]. The attribute is expressed as
    * as string in the following form: `[scope].AttributeName.[nested].[fields]...`.
    */
   def resolve(name: String): Option[NamedExpression] = {
@@ -92,8 +111,11 @@ abstract class LogicalPlan extends QueryPlan[LogicalPlan] {
 abstract class LeafNode extends LogicalPlan with trees.LeafNode[LogicalPlan] {
   self: Product =>
 
+  override lazy val statistics: Statistics =
+    throw new UnsupportedOperationException(s"LeafNode $nodeName must implement statistics.")
+
   // Leaf nodes by definition cannot reference any input attributes.
-  def references = Set.empty
+  override def references = Set.empty
 }
 
 /**

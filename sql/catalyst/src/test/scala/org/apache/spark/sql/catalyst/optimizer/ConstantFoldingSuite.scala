@@ -20,6 +20,7 @@ package org.apache.spark.sql.catalyst.optimizer
 import org.apache.spark.sql.catalyst.analysis.EliminateAnalysisOperators
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.logical.{LocalRelation, LogicalPlan}
+import org.apache.spark.sql.catalyst.plans.PlanTest
 import org.apache.spark.sql.catalyst.rules.RuleExecutor
 import org.apache.spark.sql.catalyst.types._
 
@@ -27,7 +28,7 @@ import org.apache.spark.sql.catalyst.types._
 import org.apache.spark.sql.catalyst.dsl.plans._
 import org.apache.spark.sql.catalyst.dsl.expressions._
 
-class ConstantFoldingSuite extends OptimizerTest {
+class ConstantFoldingSuite extends PlanTest {
 
   object Optimize extends RuleExecutor[LogicalPlan] {
     val batches =
@@ -82,7 +83,7 @@ class ConstantFoldingSuite extends OptimizerTest {
           Literal(10) as Symbol("2*3+4"),
           Literal(14) as Symbol("2*(3+4)"))
         .where(Literal(true))
-        .groupBy(Literal(3))(Literal(3) as Symbol("9/3"))
+        .groupBy(Literal(3.0))(Literal(3.0) as Symbol("9/3"))
         .analyze
 
     comparePlans(optimized, correctAnswer)
@@ -194,13 +195,21 @@ class ConstantFoldingSuite extends OptimizerTest {
           Add(Literal(null, IntegerType), 1) as 'c9,
           Add(1, Literal(null, IntegerType)) as 'c10,
 
-          Equals(Literal(null, IntegerType), 1) as 'c11,
-          Equals(1, Literal(null, IntegerType)) as 'c12,
+          EqualTo(Literal(null, IntegerType), 1) as 'c11,
+          EqualTo(1, Literal(null, IntegerType)) as 'c12,
 
           Like(Literal(null, StringType), "abc") as 'c13,
           Like("abc", Literal(null, StringType)) as 'c14,
 
-          Upper(Literal(null, StringType)) as 'c15)
+          Upper(Literal(null, StringType)) as 'c15,
+
+          Substring(Literal(null, StringType), 0, 1) as 'c16,
+          Substring("abc", Literal(null, IntegerType), 1) as 'c17,
+          Substring("abc", 0, Literal(null, IntegerType)) as 'c18,
+
+          Contains(Literal(null, StringType), "abc") as 'c19,
+          Contains("abc", Literal(null, StringType)) as 'c20
+        )
 
     val optimized = Optimize(originalQuery.analyze)
 
@@ -227,8 +236,15 @@ class ConstantFoldingSuite extends OptimizerTest {
           Literal(null, BooleanType) as 'c13,
           Literal(null, BooleanType) as 'c14,
 
-          Literal(null, StringType) as 'c15)
-        .analyze
+          Literal(null, StringType) as 'c15,
+
+          Literal(null, StringType) as 'c16,
+          Literal(null, StringType) as 'c17,
+          Literal(null, StringType) as 'c18,
+
+          Literal(null, BooleanType) as 'c19,
+          Literal(null, BooleanType) as 'c20
+        ).analyze
 
     comparePlans(optimized, correctAnswer)
   }

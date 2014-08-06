@@ -148,7 +148,7 @@ import org.apache.spark.streaming.*;
 import org.apache.spark.streaming.api.java.*;
 import scala.Tuple2;
 // Create a StreamingContext with a local master
-JavaStreamingContext jssc = new JavaStreamingContext("local", "JavaNetworkWordCount", new Duration(1000))
+JavaStreamingContext jssc = new JavaStreamingContext("local[2]", "JavaNetworkWordCount", new Duration(1000))
 {% endhighlight %}
 
 Using this context, we then create a new DStream
@@ -216,7 +216,7 @@ jssc.awaitTermination();   // Wait for the computation to terminate
 {% endhighlight %}
 
 The complete code can be found in the Spark Streaming example
-[JavaNetworkWordCount]({{site.SPARK_GITHUB_URL}}/blob/master/examples/src/main/java/index.html?org/apache/spark/examples/streaming/JavaNetworkWordCount.java).
+[JavaNetworkWordCount]({{site.SPARK_GITHUB_URL}}/blob/master/examples/src/main/java/org/apache/spark/examples/streaming/JavaNetworkWordCount.java).
 <br>
 
 </div>
@@ -939,7 +939,7 @@ Receiving multiple data streams can therefore be achieved by creating multiple i
 and configuring them to receive different partitions of the data stream from the source(s).
 For example, a single Kafka input stream receiving two topics of data can be split into two
 Kafka input streams, each receiving only one topic. This would run two receivers on two workers,
-thus allowing data to received in parallel, and increasing overall throughput.
+thus allowing data to be received in parallel, and increasing overall throughput.
 
 Another parameter that should be considered is the receiver's blocking interval. For most receivers,
 the received data is coalesced together into large blocks of data before storing inside Spark's memory.
@@ -980,7 +980,7 @@ If the number of tasks launched per second is high (say, 50 or more per second),
 of sending out tasks to the slaves maybe significant and will make it hard to achieve sub-second
 latencies. The overhead can be reduced by the following changes:
 
-* **Task Serialization**: Using Kryo serialization for serializing tasks can reduced the task
+* **Task Serialization**: Using Kryo serialization for serializing tasks can reduce the task
   sizes, and therefore reduce the time taken to send them to the slaves.
 
 * **Execution mode**: Running Spark in Standalone mode or coarse-grained Mesos mode leads to

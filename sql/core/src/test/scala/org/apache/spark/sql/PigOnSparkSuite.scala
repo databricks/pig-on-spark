@@ -9,7 +9,7 @@ import org.apache.spark.rdd.RDD
 
 class PigOnSparkSuite extends QueryTest {
 
-  val pp = new PigParser(TestSQLContext.pc)
+  val pp = new PigParser(TestSQLContext.pc, TestSQLContext.sparkContext)
 
   val filepath = "/Users/Greg/Spark/spark/sql/core/src/test/scala/org/apache/spark/sql/%s"
   val defaultSrcFile = "spork1.txt"

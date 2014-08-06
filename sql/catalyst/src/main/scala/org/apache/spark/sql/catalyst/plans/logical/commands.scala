@@ -35,7 +35,7 @@ abstract class Command extends LeafNode {
  */
 case class NativeCommand(cmd: String) extends Command {
   override def output =
-    Seq(BoundReference(0, AttributeReference("result", StringType, nullable = false)()))
+    Seq(AttributeReference("result", StringType, nullable = false)())
 }
 
 /**
@@ -43,8 +43,7 @@ case class NativeCommand(cmd: String) extends Command {
  */
 case class SetCommand(key: Option[String], value: Option[String]) extends Command {
   override def output = Seq(
-    BoundReference(0, AttributeReference("key", StringType, nullable = false)()),
-    BoundReference(1, AttributeReference("value", StringType, nullable = false)()))
+    AttributeReference("", StringType, nullable = false)())
 }
 
 /**
@@ -53,10 +52,26 @@ case class SetCommand(key: Option[String], value: Option[String]) extends Comman
  */
 case class ExplainCommand(plan: LogicalPlan) extends Command {
   override def output =
-    Seq(BoundReference(0, AttributeReference("plan", StringType, nullable = false)()))
+    Seq(AttributeReference("plan", StringType, nullable = false)())
 }
 
 /**
  * Returned for the "CACHE TABLE tableName" and "UNCACHE TABLE tableName" command.
  */
 case class CacheCommand(tableName: String, doCache: Boolean) extends Command
+
+/**
+ * Returned for the "DESCRIBE [EXTENDED] [dbName.]tableName" command.
+ * @param table The table to be described.
+ * @param isExtended True if "DESCRIBE EXTENDED" is used. Otherwise, false.
+ *                   It is effective only when the table is a Hive table.
+ */
+case class DescribeCommand(
+    table: LogicalPlan,
+    isExtended: Boolean) extends Command {
+  override def output = Seq(
+    // Column names are based on Hive.
+    AttributeReference("col_name", StringType, nullable = false)(),
+    AttributeReference("data_type", StringType, nullable = false)(),
+    AttributeReference("comment", StringType, nullable = false)())
+}

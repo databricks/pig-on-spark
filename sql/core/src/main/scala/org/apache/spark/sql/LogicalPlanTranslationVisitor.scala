@@ -10,16 +10,16 @@ import org.apache.pig.newplan.logical.expression.{LogicalExpressionPlan => PigEx
 LogicalExpression => PigExpression}
 import org.apache.pig.newplan.logical.relational.{LogicalPlan => PigLogicalPlan, _}
 
-import org.apache.spark.sql.catalyst.types.{StringType, BinaryType, NullType, IntegerType}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, _}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan => SparkLogicalPlan, _}
 import org.apache.spark.sql.Bag._
+import org.apache.spark.SparkContext
 
 /**
  * Walks the PigOperatorPlan and builds an equivalent SparkLogicalPlan
  */
-class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
+class LogicalPlanTranslationVisitor(plan: PigOperatorPlan, sc: SparkContext)
   extends LogicalRelationalNodesVisitor(plan, new DependencyOrderWalker(plan))
   with PigTranslationVisitor[PigOperator, SparkLogicalPlan] {
 
@@ -201,7 +201,7 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
     mixed.map { case (l, r) =>
       val left = translateExpression(l)
       val right = translateExpression(r)
-      Equals(left, right)
+      EqualTo(left, right)
     }
   }
 
@@ -287,7 +287,8 @@ class LogicalPlanTranslationVisitor(plan: PigOperatorPlan)
     val delimiter = if (parserArgs == null) "\t" else parserArgs(0)
     val alias = pigLoad.getAlias
 
-    val load = PigLoad(path = file, delimiter = delimiter, alias = alias, output = schemaMap)
+    val load = PigLoad(
+      path = file, delimiter = delimiter, alias = alias, output = schemaMap, sc = this.sc)
     updateStructures(pigLoad, load)
   }
 
