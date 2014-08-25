@@ -8,20 +8,18 @@ import org.apache.pig.newplan.logical.expression.{
 LogicalExpression => PigExpression,
 BinaryExpression => PigBinaryExpression,
 UnaryExpression => PigUnaryExpression, _}
-import org.apache.pig.newplan.DependencyOrderWalker
+import org.apache.pig.newplan.ReverseDependencyOrderWalker
 
 import org.apache.spark.sql.catalyst.expressions.{Expression => SparkExpression, _}
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.types.StringType
-
-import org.apache.pig.newplan.logical.relational.LogicalRelationalOperator
 
 /**
  * Walks a Pig LogicalExpressionPlan tree and translates it into an equivalent Catalyst expression
  */
 class ExpressionPlanTranslationVisitor(plan: LogicalExpressionPlan,
                                        parent: PigTranslationVisitor[_,_])
-  extends LogicalExpressionVisitor(plan, new DependencyOrderWalker(plan, true))
+  extends LogicalExpressionVisitor(plan, new ReverseDependencyOrderWalker(plan))
   with PigTranslationVisitor[PigExpression, SparkExpression] {
 
   /**
