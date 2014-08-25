@@ -26,8 +26,7 @@ import org.scalatest.BeforeAndAfter
  */
 class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
   // TODO: bundle in jar files... get from classpath
-  // TODO: figure out how to not hard-code this
-  lazy val pigQueryDir = new File("/Users/Greg/Spark/spark/sql/core/src/test/scala/org/apache/spark/sql/pig/tests")
+  lazy val pigQueryDir = new File(System.getProperty("spark.pig.querydir"))
 
   def testCases = pigQueryDir.listFiles.map(f => f.getName -> f)
 

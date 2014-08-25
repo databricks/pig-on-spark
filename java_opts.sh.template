@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# By default, we use Vanilla Pig, not Spork
+export JAVA_TOOL_OPTIONS="-Dspark.pig.useSpork=false"
+
+# Directory containing the queries, one per file
+export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.querydir=$SPARK_HOME/sql/core/src/test/scala/org/apache/spark/sql/pig/tests"
+
+# Directory containing the input files
+export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.indir=$SPARK_HOME/sql/core/src/test/resources/testinput"
+
+# Directory that will contain the (cached) output of the reference tests
+export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.outdir=$SPARK_HOME/sql/core/src/test/scala/org/apache/spark/sql/pig/testoutput"
+
+# Path to the vanilla Pig command
+export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.pigCmd=$PIG_HOME/bin/pig"
+
+# Path to the Spork command, if using
+# export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.sporkCmd=$SPORK_HOME/spork/pig-spark"
+
+# Path to the Hadoop version used by vanilla Pig
+export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.pigHadoop=$HADOOP_HOME"
+
+# Path to the Hadoop version used by Spork, if using
+# export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.sporkHadoop=$HADOOP_HOME"
+
+# Vanilla Pig home
+export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.pigHome=$PIG_HOME"
+
+# Spork home, if using
+# export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.sporkHome=$SPORK_HOME"
