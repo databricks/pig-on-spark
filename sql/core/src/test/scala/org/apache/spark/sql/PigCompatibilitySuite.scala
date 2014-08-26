@@ -36,6 +36,7 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
   override def afterAll() {
   }
 
+  /*
   /** A list of tests deemed out of scope currently and thus completely disregarded. */
   override def blackList = Seq(
     // Pig's sort is not stable (gah!) so these give incorrect output
@@ -552,5 +553,31 @@ class PigCompatibilitySuite extends PigQueryFileTest with BeforeAndAfter {
     "Types-40",
     "Types-41",
     "Types-42"
+  )
+  */
+
+  override def blackList = Seq(
+    "dummy"
+  )
+
+  override def whiteList = Seq(
+    "L1.pig",
+    "L2.pig",
+    "L3.pig",
+    "L4.pig",
+    "L5.pig",
+    "L6.pig",
+    "L7.pig",
+    "L8.pig",
+    "L9.pig",
+    "L10.pig",
+    "L11.pig",
+    "L12.pig",
+    "L13.pig",
+    "L13.pig",
+    "L14.pig",
+    "L15.pig",
+    "L16.pig",
+    "L17.pig"
   )
 }

@@ -164,9 +164,17 @@ abstract class PigComparisonTest
     str.replaceAll("file:\\/.*\\/", "<PATH>")
   }
 
-  protected class PigQueryExecution(pql: String) {
+  protected class PigQueryExecution(pql: String, testCaseName: String) {
     lazy val logical = TestSQLContext.pigParser(pql)
-    lazy val result: Seq[Seq[Any]] = TestSQLContext.pql(pql).collect().toSeq
+    lazy val result: Seq[Seq[Any]] = {
+      val t0 = System.nanoTime()
+      val res = TestSQLContext.pql(pql).collect()
+      val t1 = System.nanoTime()
+      val elapsed = (t1 - t0)/1e9
+      println(s"Catalyst $testCaseName\t$elapsed")
+      res.toSeq
+    }
+
     override def toString = pql
     def stringResult(): Seq[String] = {
       // Pig stores nulls as "" rather than "null"
@@ -239,7 +247,11 @@ abstract class PigComparisonTest
             val pb = Process(cmdstr, None, env:_*)
             var out = List[String]()
             var err = List[String]()
+            val t0 = System.nanoTime()
             val exit = pb.!(ProcessLogger((s) => out ::= s, (s) => err ::= s))
+            val t1 = System.nanoTime()
+            val elapsed = (t1 - t0)/1e9
+            println(s"Reference $testCaseName\t$elapsed")
 
             println(s"exit is $exit")
 
@@ -319,7 +331,7 @@ abstract class PigComparisonTest
         val outpath = outdir + "/" + pigCacheFile.getName
         val params = HashMap("INPATH" -> indir, "OUTPATH" -> outpath)
         val query = substituteParameters(rawQuery, params)
-        val pigQuery = new PigQueryExecution(query)
+        val pigQuery = new PigQueryExecution(query, testCaseName)
 
         // Check that the results match unless its an EXPLAIN query.
         // We need to delete the output directory before we prepare the logical plan because the
