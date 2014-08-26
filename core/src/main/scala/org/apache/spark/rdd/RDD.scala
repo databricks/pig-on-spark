@@ -70,6 +70,7 @@ import org.apache.spark.util.random.{BernoulliSampler, PoissonSampler, SamplingU
  * to implement its own way of computing itself. Indeed, users can implement custom RDDs (e.g. for
  * reading data from a new storage system) by overriding these functions. Please refer to the
  * [[http://www.cs.berkeley.edu/~matei/papers/2012/nsdi_spark.pdf Spark paper]] for more details
+ * 
  * on RDD internals.
  */
 abstract class RDD[T: ClassTag](
@@ -1273,7 +1274,7 @@ abstract class RDD[T: ClassTag](
       val symbolStr = if (isShuffle) " + " else " | "
       val nextPrefix = prefix + (" " * partitionStr.length)
       Seq(prefix + partitionStr + symbolStr + rdd) ++ rdd.dependencies.flatMap(
-        d => debugString(d.rdd, nextPrefix, d.isInstanceOf[ShuffleDependency[_,_]]))
+        d => debugString(d.rdd, nextPrefix, d.isInstanceOf[ShuffleDependency[_,_,_]]))
     }
     debugString(this).mkString("\n")
   }
