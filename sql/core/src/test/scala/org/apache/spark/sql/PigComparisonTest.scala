@@ -5,16 +5,16 @@ import java.io._
 import scala.collection.immutable.HashMap
 import scala.util.matching.Regex
 import scala.util.matching.Regex.Match
+import scala.sys.process.{ProcessLogger, Process}
 
 import org.scalatest.{BeforeAndAfterAll, FunSuite, GivenWhenThen}
-
-import org.apache.commons.io.FileUtils
 
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.test.TestSQLContext
-import scala.sys.process.{ProcessLogger, Process}
+import org.apache.hadoop.fs.Path
+import org.apache.spark.util.Utils
 
 
 /**
@@ -54,6 +54,10 @@ abstract class PigComparisonTest
   protected val indir = System.getProperty("spark.pig.indir")
   // Directory that contains the output files from our Pig jobs
   protected val outdir = System.getProperty("spark.pig.outdir")
+  // Directory that contains the cached golden files from Pig
+  protected val pigGoldenDir = System.getProperty("spark.pig.pigGoldenDir")
+  // Directory that contains the cached golden files from Spork
+  protected val sporkGoldenDir = System.getProperty("spark.pig.sporkGoldenDir")
   // Path to the pig executable
   protected val pigCmd = System.getProperty("spark.pig.pigCmd")
   // Path to the Sigmoid Spork executable
@@ -67,74 +71,8 @@ abstract class PigComparisonTest
   // Pig home for Sigmoid Spork
   protected val sporkHome = System.getProperty("spark.pig.sporkHome")
 
-  protected val targetDir = new File("target")
-
-  /**
-   * When set, this comma separated list is defines directories that contain the names of test cases
-   * that should be skipped.
-   *
-   * For example when `-Dspark.pig.skiptests=passed,pigFailed` is specified and test cases listed
-   * in [[passedDirectory]] or [[pigFailedDirectory]] will be skipped.
-   */
-  val skipDirectories =
-    Option(System.getProperty("spark.pig.skiptests"))
-      .toSeq
-      .flatMap(_.split(","))
-      .map(name => new File(targetDir, s"$suiteName.$name"))
-
-  val runOnlyDirectories =
-    Option(System.getProperty("spark.pig.runonlytests"))
-      .toSeq
-      .flatMap(_.split(","))
-      .map(name => new File(targetDir, s"$suiteName.$name"))
-
-  /** The local directory where cached golden answers will be stored. */
-  protected val answerCache = new File("src" + File.separator + "test" +
-    File.separator + "resources" + File.separator + "golden")
-  if (!answerCache.exists) {
-    answerCache.mkdir()
-  }
-
-  /** The local directory where cached Sigmoid Spork answers will be stored. */
-  protected val sporkCache = new File("src" + File.separator + "test" +
-    File.separator + "resources" + File.separator + "sigmoid")
-  if (!sporkCache.exists) {
-    sporkCache.mkdir()
-  }
-
   /** The [[ClassLoader]] that contains test dependencies.  Used to look for golden answers. */
   protected val testClassLoader = this.getClass.getClassLoader
-
-  /** Directory containing a file for each test case that passes. */
-  val passedDirectory = new File(targetDir, s"$suiteName.passed")
-  if (!passedDirectory.exists()) {
-    passedDirectory.mkdir() // Not atomic!
-  }
-
-  /** Directory containing output of tests that fail to execute with Catalyst. */
-  val failedDirectory = new File(targetDir, s"$suiteName.failed")
-  if (!failedDirectory.exists()) {
-    failedDirectory.mkdir() // Not atomic!
-  }
-
-  /** Directory containing output of tests where catalyst produces the wrong answer. */
-  val wrongDirectory = new File(targetDir, s"$suiteName.wrong")
-  if (!wrongDirectory.exists()) {
-    wrongDirectory.mkdir() // Not atomic!
-  }
-
-  /** Directory containing output of tests where we fail to generate golden output with Pig. */
-  val pigFailedDirectory = new File(targetDir, s"$suiteName.pigFailed")
-  if (!pigFailedDirectory.exists()) {
-    pigFailedDirectory.mkdir() // Not atomic!
-  }
-
-  /** All directories that contain per-query output files */
-  val outputDirectories = Seq(
-    passedDirectory,
-    failedDirectory,
-    wrongDirectory,
-    pigFailedDirectory)
 
   protected val cacheDigest = java.security.MessageDigest.getInstance("MD5")
   protected def getMd5(str: String): String = {
@@ -199,22 +137,24 @@ abstract class PigComparisonTest
    * resule
    * @param testCaseName the name of the current test
    * @param rawQuery the raw (before parameter substitution) Pig Latin query for this test
-   * @param cacheFile the file that we should check for the cached result
+   * @param cacheFile path to the file that we should check for the cached result
    * @param exe path to the executable that we should call to re-run the query
    */
   protected def getCachedResult(testCaseName: String,
                                 rawQuery: String,
-                                cacheFile: File,
+                                cacheFile: String,
                                 exe:String,
                                 env:Seq[(String, String)]) = {
     val cachedFileContents = {
       logger.debug(s"Looking for cached answer file $cacheFile.")
-      if (cacheFile.exists) {
-        val cachedContentRdd = TestSQLContext.sparkContext.textFile(cacheFile.getAbsolutePath)
+      try {
+        val cachedContentRdd = TestSQLContext.sparkContext.textFile(cacheFile)
         Some(cachedContentRdd.collect())
-      } else {
-        logger.debug(s"File $cacheFile not found")
-        None
+      } catch {
+        case _ : FileNotFoundException => {
+          logger.debug(s"File $cacheFile not found")
+          None
+        }
       }
     }
     val cachedResult = cachedFileContents match {
@@ -229,7 +169,7 @@ abstract class PigComparisonTest
         logger.info(s"Using ${exe.split("/").last} cache for test: $testCaseName")
         res
       case None =>
-        val params = HashMap("INPATH" -> indir, "OUTPATH" -> cacheFile.getAbsolutePath)
+        val params = HashMap("INPATH" -> indir, "OUTPATH" -> cacheFile)
         val query = substituteParameters(rawQuery, params)
 
         //val pigQuery = new PigQueryExecution(query)
@@ -240,7 +180,7 @@ abstract class PigComparisonTest
             // Kind of a hack. Technically we should be able to call
             // val stats = Pig.compile(query).bind().runSingle()
             // but that was giving weird errors.
-            val cmdstr = s"$exe -x local -e $query"
+            val cmdstr = s"$exe -x mapreduce -e $query"
 
             logger.warn(s"Running $cmdstr")
 
@@ -264,7 +204,7 @@ abstract class PigComparisonTest
               println("***** /STDERR *****")
             }
 
-            val answer = TestSQLContext.sparkContext.textFile(cacheFile.getAbsolutePath)
+            val answer = TestSQLContext.sparkContext.textFile(cacheFile)
             answer.collect()
           } catch {
             case e: Exception =>
@@ -275,13 +215,9 @@ abstract class PigComparisonTest
                    |${stackTraceToString(e)}
                    |$query
                  """.stripMargin
-              stringToFile(
-                new File(pigFailedDirectory, testCaseName),
-                errorMessage)
               fail(errorMessage)
           }
         }.toSeq
-        //if (reset) { TestPig.reset() }
 
         computedResult
     }
@@ -295,40 +231,24 @@ abstract class PigComparisonTest
       case (shardId, _) => logger.debug(s"Shard $shardId includes test '$testCaseName'")
     }
 
-    // Skip tests found in directories specified by user.
-    skipDirectories
-      .map(new File(_, testCaseName))
-      .filter(_.exists)
-      .foreach(_ => return)
-
-    // If runonlytests is set, skip this test unless we find a file in one of the specified
-    // directories.
-    val runIndicators =
-      runOnlyDirectories
-        .map(new File(_, testCaseName))
-        .filter(_.exists)
-    if (runOnlyDirectories.nonEmpty && runIndicators.isEmpty) {
-      logger.debug(
-        s"Skipping test '$testCaseName' not found in ${runOnlyDirectories.map(_.getCanonicalPath)}")
-      return
-    }
-
     test(testCaseName) {
       logger.debug(s"=== PIG TEST: $testCaseName ===")
 
       // Clear old output for this testcase.
-      outputDirectories.map(new File(_, testCaseName)).filter(_.exists()).foreach(_.delete())
+      val cachedAnswerName = s"$testCaseName-${getMd5(rawQuery)}"
+      val outpath = outdir + "/" + cachedAnswerName
+
+      val outpathHDFS = new Path(outpath)
+      val fs = Utils.getHadoopFileSystem(outpath)
+      fs.delete(outpathHDFS, true)
 
       lazy val rawTestCase = "\n== Raw query version of this test ==\n" + rawQuery
 
       try {
-        val cachedAnswerName = s"$testCaseName-${getMd5(rawQuery)}"
-        val pigCacheFile = new File(answerCache, cachedAnswerName)
 
         val pigOptions = Seq(("HADOOP_HOME", pigHadoop), ("PIG_HOME", pigHome))
-        val pigResult = getCachedResult(testCaseName, rawQuery, pigCacheFile, pigCmd, pigOptions)
+        val pigResult = getCachedResult(testCaseName, rawQuery, pigGoldenDir, pigCmd, pigOptions)
 
-        val outpath = outdir + "/" + pigCacheFile.getName
         val params = HashMap("INPATH" -> indir, "OUTPATH" -> outpath)
         val query = substituteParameters(rawQuery, params)
         val pigQuery = new PigQueryExecution(query, testCaseName)
@@ -336,15 +256,14 @@ abstract class PigComparisonTest
         // Check that the results match unless its an EXPLAIN query.
         // We need to delete the output directory before we prepare the logical plan because the
         // Pig parser will die otherwise
-        FileUtils.deleteDirectory(new File(outpath))
+        fs.delete(outpathHDFS, true)
         val preparedPig = prepareAnswer(pigQuery.logical, pigResult)
 
         val testResult = {
           if (useSpork) {
             // Run w/ Spork
-            val sporkCacheFile = new File(sporkCache, cachedAnswerName)
             val sporkOptions = Seq(("HADOOP_HOME", sporkHadoop), ("PIG_HOME", sporkHome))
-            val sporkResult = getCachedResult(testCaseName, rawQuery, sporkCacheFile, sporkCmd, sporkOptions)
+            val sporkResult = getCachedResult(testCaseName, rawQuery, sporkGoldenDir, sporkCmd, sporkOptions)
             prepareAnswer(pigQuery.logical, sporkResult)
           }
           else {
@@ -362,7 +281,6 @@ abstract class PigComparisonTest
                     |== PIG - ${preparedPig.size} rows ==
                     |${preparedPig.take(10)}
                     """.stripMargin
-                stringToFile(new File(failedDirectory, testCaseName), errorMessage + rawTestCase)
                 fail(errorMessage)
             }
           }
@@ -375,11 +293,6 @@ abstract class PigComparisonTest
 
           val resultComparison = sideBySide(pigPrintOut, testPrintOut).mkString("\n")
 
-          if (recomputeCache) {
-            logger.warn(s"Clearing cache files for failed test $testCaseName")
-            pigCacheFile.delete()
-          }
-
           val errorMessage =
             s"""
               |Results do not match for $testCaseName:
@@ -388,13 +301,8 @@ abstract class PigComparisonTest
               |$resultComparison
               """.stripMargin
 
-            stringToFile(new File(wrongDirectory, testCaseName), errorMessage + rawTestCase)
-
           fail(errorMessage)
         }
-
-        // Touch passed file.
-        new FileOutputStream(new File(passedDirectory, testCaseName)).close()
       } catch {
         case tf: org.scalatest.exceptions.TestFailedException => throw tf
         case originalException: Exception =>

@@ -4,13 +4,19 @@
 export JAVA_TOOL_OPTIONS="-Dspark.pig.useSpork=false"
 
 # Directory containing the queries, one per file
-export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.querydir=$SPARK_HOME/sql/core/src/test/resources/tests"
+export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.querydir=$SPARK_HOME/sql/core/src/test/resources/pigmix"
 
 # Directory containing the input files
-export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.indir=$SPARK_HOME/sql/core/src/test/resources/testinput"
+export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.indir=/pigmix"
 
-# Directory that will contain the (cached) output of the reference tests
-export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.outdir=$SPARK_HOME/sql/core/src/test/resources/testoutput"
+# Directory that will contain the (temporary) output of all tests
+export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.outdir=/pigmix/output"
+
+# Directory that will contain the (cached) output of Pig tests
+export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.pigGoldenDir=/pigmix/golden"
+
+# Directory that will contain the (cached) output of Spork tests, if using
+export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.sporkGoldenDir=/pigmix/spork"
 
 # Path to the vanilla Pig command
 export JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Dspark.pig.pigCmd=$PIG_HOME/bin/pig"
