@@ -1,5 +1,5 @@
 
-A = load ':INPATH:/page_views' using PigStorage()
+A = load ':INPATH:/page_views' using PigStorage('\u0001')
 as (user, action, timespent, query_term, ip_addr, timestamp,
 estimated_revenue, page_info, page_links);
 B = foreach A generate user, (int)action as action, (map[])page_info as page_info,

@@ -1,5 +1,5 @@
 
-A = load ':INPATH:/page_views' using PigStorage() as (user, action, timespent, query_term,
+A = load ':INPATH:/page_views' using PigStorage('\u0001') as (user, action, timespent, query_term,
 ip_addr, timestamp, estimated_revenue, page_info, page_links);
 B = foreach A generate user, timestamp;
 C = group B by user parallel 1;
