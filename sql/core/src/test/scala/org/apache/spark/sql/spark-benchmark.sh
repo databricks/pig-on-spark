@@ -15,4 +15,3 @@ for query in $PIG_QUERY_DIR/*; do
 
     echo -e "\nOutput for $query is in $outputFile\n"
 done
-

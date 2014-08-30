@@ -1,7 +1,8 @@
-package org.apache.spark.sql
+package org.apache.spark.sql.PigOnSparkBenchmark
 
 import java.io.{File, PrintWriter}
 import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.SQLContext
 
 /**
  * Benchmarks a Pig query for both compilation time and execution time.
@@ -11,7 +12,7 @@ import org.apache.spark.{SparkConf, SparkContext}
  */
 object PigOnSparkBenchmark {
   def main(args: Array[String]) {
-    val conf = new SparkConf().setAppName("Pig-on-Spark Benchmark")
+    val conf = new SparkConf().setAppName("PigOnSparkBenchmark")
     val sc = new SparkContext(conf)
 
     // The Pig query to benchmark
